@@ -39,20 +39,21 @@ var fieldCatalog=[
   {group:"员工任职信息",field:"员工任职信息·职位名称",note:"取额度计算日有效任职记录中的职位名称。"},
   {group:"员工任职信息",field:"员工任职信息·工作城市",values:["上海","深圳","北京","广州","其他城市"],note:"取休假开始日有效任职记录中的工作城市。"},
   {group:"休假申请单",field:"休假申请单·预产期",note:"来自产假申请单的预产期。"},
-  {group:"休假申请单",field:"休假申请单·孕周",note:"由员工分别填写周数和天数，系统换算为总天数后比较。"},
+  {group:"休假申请单",field:"休假申请单·孕周",note:"由员工分别填写周数和余天，规则按“X周Y天”比较；余天只能为0至6。"},
   {group:"休假申请单",field:"休假申请单·去世亲属身份",values:["配偶","父母","子女","祖父母／外祖父母","其他亲属"],note:"来自丧假申请单的去世亲属身份。"},
   {group:"休假申请单",field:"休假申请单·哺乳时段",values:["上班前","上班后"],note:"由员工在哺乳假申请单选择。"},
-  {group:"系统计算",field:"系统计算·截至申请日入职天数",note:"按申请提交日期减员工入职日期计算。"},
-  {group:"系统计算",field:"系统计算·孕期阶段",values:["未满4个月","已满4个月"],note:"根据申请单孕周换算；4个月的周数边界由企业确认。"},
-  {group:"系统计算",field:"系统计算·连续工作月数",note:"根据员工参加工作日期与休假开始日期计算。"},
-  {group:"系统计算",field:"系统计算·截至额度计算日连续工作月数",note:"根据员工参加工作日期与本次额度计算日期计算。"},
+  {group:"系统计算",field:"系统计算·截至休假开始日入职天数",note:"按入职日期至休假开始日期的前闭后开区间计算天数。"},
   {group:"系统计算",field:"系统计算·当年3月8日",note:"按休假开始日期所在年度生成当年3月8日。"},
   {group:"系统计算",field:"系统计算·当年3月8日是否周末",values:["否","是"],note:"按日历星期判断当年3月8日是否为星期六或星期日；调休补班不改变判断结果。"},
   {group:"系统计算",field:"系统计算·当年3月31日",note:"按休假开始日期所在年度生成当年3月31日。"}
 ];
 
+var annualFieldCatalog=[
+  {group:"年假额度计算",field:"年假额度计算·截至额度计算日工作月数",note:"按参加工作日期与额度计算日期计算已完整经过的月数；只用于年假额度生成资格。"}
+];
+
 var dateReferenceOptions=["休假开始日期","休假结束日期","休假申请单·预产期","原休假单·休假开始日期","系统计算·当年3月8日","系统计算·当年3月31日"];
-var annualEligibilityFields=["员工任职信息·人员状态","员工任职信息·转正状态","员工任职信息·职位名称","员工档案·员工类型","系统计算·截至额度计算日连续工作月数"];
+var annualEligibilityFields=["员工任职信息·人员状态","员工任职信息·转正状态","员工任职信息·职位名称","员工档案·员工类型","年假额度计算·截至额度计算日工作月数"];
 var entitlementModeMeta={
   "按可用余额控制":{label:"按可用额度控制",description:"本次申请不能超过当前可用额度。常用于年假、调休假，以及启用额度管理的病假。"},
   "按总可休时长控制":{label:"按政策条件确定可休时长",description:"根据地区、孕周、亲属关系等条件确定可休时长。常用于婚假、产假、流产假、陪产假和丧假。"},
@@ -60,8 +61,9 @@ var entitlementModeMeta={
   "不限制可休总时长":{label:"不设置累计上限",description:"不限制员工累计可休总量，只校验本次申请。常用于事假、未启用额度管理的病假或福利假。"}
 };
 var entitlementModes=Object.keys(entitlementModeMeta);
-var crossYearRuleEnabled=true;
-var quotaConfigEnabled={annual:true,comp:true,sick:true};
+var crossYearRuleEnabled=false;
+var annualEligibilityEnabled=false;
+var quotaConfigEnabled={comp:true,sick:true};
 
 function defaultRule(){return {
   entitlementMode:"不限制可休总时长",durationMode:"规则表",durationRules:[],durationFormula:"",durationFormulaCheckStatus:"未检测",
@@ -86,7 +88,7 @@ var unifiedRules={
   marriage:rule({entitlementMode:"按总可休时长控制",durationRules:[durationRule([condition("员工任职信息·工作城市","等于","上海")],"3",{name:"上海",unit:"天"}),durationRule([condition("员工任职信息·工作城市","等于","深圳")],"5",{name:"深圳",unit:"天"})],conditionEnabled:true,conditionLogic:"同时满足全部条件（且）",conditions:[condition("员工档案·婚姻状况","等于","已婚")],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["结婚证明"]}],policyEnabled:true,policyNotice:"婚假天数按工作城市规则执行；结婚登记日期由审批人根据结婚证明核验。"}),
   prenatal:rule({entitlementMode:"按周期限制使用",durationRules:[durationRule([condition("休假申请单·孕周","小于","29周0天")],"",{name:"孕周不满29周",kind:"periodic",cycle:"自然月",limitType:"申请次数＋单次时长",maxTimes:"1",singleDuration:"1",unit:"天"}),durationRule([condition("休假申请单·孕周","大于等于","29周0天")],"",{name:"孕周达到29周",kind:"periodic",cycle:"自然月",limitType:"申请次数＋单次时长",maxTimes:"2",singleDuration:"1",unit:"天"})],conditionEnabled:true,conditions:[condition("员工档案·性别","等于","女")],attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["产检证明"]}],policyEnabled:true,policyNotice:"29周前每个自然月最多申请1次，第29周起每个自然月最多申请2次；每次最多可休1天。"}),
   maternity:rule({entitlementMode:"按总可休时长控制",durationRules:[durationRule([condition("员工任职信息·工作城市","等于","上海")],"98",{name:"上海",unit:"天"})],conditionEnabled:true,conditions:[condition("员工档案·性别","等于","女")],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["生育证明","出生证明"]}],policyEnabled:true,policyNotice:"产假天数和申请时间按员工工作城市政策执行。"}),
-  miscarriage:rule({entitlementMode:"按总可休时长控制",durationMode:"统一公式",durationFormula:"如果 [休假申请单·孕周] < 16周0天 那么 15 否则 42",durationFormulaCheckStatus:"通过",durationRules:[],conditionEnabled:true,conditionLogic:"同时满足全部条件（且）",conditions:[condition("员工档案·性别","等于","女"),condition("员工档案·婚姻状况","等于","已婚")],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["流产证明","诊断证明"]}],policyEnabled:true,policyNotice:"孕期不满4个月可休15天，孕期已满4个月可休42天；流产事实由审批人根据医疗材料核验。"}),
+  miscarriage:rule({entitlementMode:"按总可休时长控制",durationMode:"统一公式",durationFormula:"如果 孕周达到(16,0) 那么 42 否则 15",durationFormulaCheckStatus:"通过",durationRules:[],conditionEnabled:true,conditionLogic:"同时满足全部条件（且）",conditions:[condition("员工档案·性别","等于","女"),condition("员工档案·婚姻状况","等于","已婚")],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["流产证明","诊断证明"]}],policyEnabled:true,policyNotice:"孕期不满4个月可休15天，孕期已满4个月可休42天；流产事实由审批人根据医疗材料核验。"}),
   difficult:rule({entitlementMode:"按总可休时长控制",durationRules:[durationRule([condition("员工任职信息·工作城市","等于","上海")],"15",{name:"上海难产假",kind:"total",unit:"天"})],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["难产证明"]}],policyEnabled:true,policyNotice:"难产事实由审批人根据难产证明核验；如需关联产假单，由休假申请单统一控制。"}),
   breastfeeding:rule({entitlementMode:"按周期限制使用",durationRules:[durationRule([],"1",{name:"每个工作日哺乳时间",kind:"periodic",cycle:"工作日",limitType:"累计时长",unit:"小时",resultMode:"直接填写"})],conditionEnabled:true,conditions:[condition("员工档案·性别","等于","女")],policyEnabled:true,policyNotice:"员工申请时选择上班前或上班后，系统据此确定休假时段。"}),
   paternity:rule({entitlementMode:"按总可休时长控制",durationRules:[durationRule([condition("员工任职信息·工作城市","等于","上海")],"15",{name:"上海",unit:"天"})],conditionEnabled:true,conditions:[condition("员工档案·性别","等于","男")],usageMode:"必须一次性休完",continuousLeave:"是",attachmentEnabled:true,attachmentRules:[{basis:"所有申请",operator:"",value:"",materials:["出生证明"]}],policyEnabled:true,policyNotice:"陪产假天数和申请期限按员工工作城市政策执行。"}),
@@ -121,7 +123,7 @@ var leaveFilterConfig={
   paid:{id:"leaveFilterPaid",label:"是否带薪",options:["全部","是","否"]}
 };
 
-function findField(field){return fieldCatalog.find(function(x){return x.field===field;});}
+function findField(field){return fieldCatalog.concat(annualFieldCatalog).find(function(x){return x.field===field;});}
 function optionListHtml(values,current){return values.filter(function(x,i,a){return x!=null&&a.indexOf(x)===i;}).map(function(x){return '<option'+(x===current?' selected':'')+'>'+x+'</option>';}).join("");}
 function arrayValue(value){if(Array.isArray(value)){return value;}if(!value||value==="无"){return [];}return String(value).split("、");}
 function directChoiceControlHtml(item){var choices=(item.options||[]).filter(function(x){return x!=null;}).map(function(x){return typeof x==="object"?{value:String(x.value),label:String(x.label)}:{value:String(x),label:String(x)};}),current=item.value==null?"":String(item.value),id=item.id||("directChoice"+Math.random().toString(36).slice(2)),disabled=!!item.disabled,classes="direct-choice-group"+(item.compactChoice?" compact":"")+(disabled?" is-disabled":"");return '<input type="hidden" id="'+id+'" value="'+current+'"><div class="'+classes+'" role="radiogroup" data-value-target="'+id+'">'+choices.map(function(choice){var active=choice.value===current;return '<label class="direct-radio-option'+(active?' active':'')+'"><input class="direct-choice-input" type="radio" name="direct-'+id+'" value="'+choice.value+'"'+(active?' checked':'')+(disabled?' disabled':'')+'><span>'+choice.label+'</span></label>';}).join("")+'</div>';}
@@ -190,6 +192,7 @@ function setPlanEditorReadonly(version){
 function openPlanEditor(id,isNew,copySourceId,historyVersion){
   editingPlanId=id||"";editingPlanIsNew=!!isNew;editingPlanCopySource=copySourceId||"";setPlanEditorReadonly(historyVersion||"");
   var source=copySourceId?plans.find(function(x){return x.id===copySourceId;}):null;
+  if(isNew&&!source){annualEligibilityEnabled=false;crossYearRuleEnabled=false;renderBoundary("annual");}
   var p=isNew?(source?JSON.parse(JSON.stringify(source)):{name:"",names:{zh_CN:"",en_US:""},version:"保存后生成",region:"中国区",regions:["中国区"],applyScopes:["人员类型"],personnel:["内部员工"],employee:[],state:"启用"}):plans.find(function(x){return x.id===id;});
   if(source){p.name="";p.names={zh_CN:"",en_US:""};p.version="保存后生成";p.state="启用";}
   editingPlanNames=planNames(p);
@@ -200,7 +203,7 @@ function openPlanEditor(id,isNew,copySourceId,historyVersion){
   document.getElementById("planEditorMeta").innerHTML=meta;document.getElementById("planName").value=editingPlanNames.zh_CN;document.getElementById("planVersionDisplay").textContent=viewingHistoricalVersion||p.version;setCheckboxValues("planRegions",planRegionValues(p));setCheckboxValues("planApplyScopes",planScopeValues(p));setCheckboxValues("planPersonnelTypes",p.personnel);setCheckboxValues("planEmployeeTypes",p.employee);syncPlanScopeFields(false);closeEnumMultiSelects();planFormDirty=false;showView("edit");
 }
 function collectPlanForm(){editingPlanNames.zh_CN=document.getElementById("planName").value.trim();var regions=selectedCheckboxValues("planRegions"),applyScopes=selectedCheckboxValues("planApplyScopes");return {name:editingPlanNames.zh_CN,names:Object.assign({},editingPlanNames),region:regions.join("、"),regions:regions,applyScopes:applyScopes,personnel:applyScopes.indexOf("人员类型")>-1?selectedCheckboxValues("planPersonnelTypes"):[],employee:applyScopes.indexOf("员工类型")>-1?selectedCheckboxValues("planEmployeeTypes"):[]};}
-function validatePlanForm(form){var issues=[];if(!form.name){issues.push("请填写方案名称");}if(!form.regions.length){issues.push("请至少选择一个划分区域");}if(!form.applyScopes.length){issues.push("请至少选择一种适用范围匹配方式");}if(form.applyScopes.indexOf("人员类型")>-1&&!form.personnel.length){issues.push("请选择人员类型");}if(form.applyScopes.indexOf("员工类型")>-1&&!form.employee.length){issues.push("请选择员工类型");}return issues;}
+function validatePlanForm(form){var issues=[];if(!form.name){issues.push("请填写方案名称");}if(!form.regions.length){issues.push("请至少选择一个划分区域");}if(!form.applyScopes.length){issues.push("请至少选择一种适用范围匹配方式");}if(form.applyScopes.indexOf("人员类型")>-1&&!form.personnel.length){issues.push("请选择人员类型");}if(form.applyScopes.indexOf("员工类型")>-1&&!form.employee.length){issues.push("请选择员工类型");}if(annualEligibilityEnabled&&!collectConditionSet(document.querySelector(".annual-eligibility-condition-list")).length){issues.push("已启用额度获得条件，请至少添加一条完整条件");}return issues;}
 function showPlanValidationIssues(title,issues){var body='<div class="notice">共'+issues.length+'项未通过，请修改后重试。</div><ol class="validation-list">'+issues.map(function(issue){return "<li>"+issue+"</li>";}).join("")+"</ol>";openConfirm(title,body,null);}
 function savePlan(){
   var form=collectPlanForm(),issues=validatePlanForm(form);if(issues.length){showPlanValidationIssues("假期方案暂不能保存",issues);return;}
@@ -254,7 +257,7 @@ function annualConfigPageHtml(){return `
   </div>
 
   <div class="annual-step-pane active" data-annual-pane="grant">
-    <div class="annual-mode-row"><div class="annual-mode-switch"><button class="annual-mode">标准配置</button><button class="annual-mode active">公式配置</button></div><button class="btn-text" id="annualGrantGuide">规则说明</button></div>
+    <div class="annual-mode-row"><div class="annual-mode-switch"><button class="annual-mode active">标准配置</button><button class="annual-mode">公式配置</button></div><button class="btn-text" id="annualGrantGuide">规则说明</button></div>
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">1. 发放周期与方式</div><div class="annual-config-desc">普通年假按自然年归属，每日计算并预发当日应得额度。</div></div>
       <div class="annual-config-body">
@@ -358,7 +361,7 @@ function annualOehrPageHtml(){return `
   <div class="annual-step-pane active" data-annual-pane="grant">
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">配置方式</div></div>
-      <div class="annual-config-body oehr-config-mode"><div class="annual-mode-switch"><button class="annual-mode">标准配置</button><button class="annual-mode active">公式配置</button></div></div>
+      <div class="annual-config-body oehr-config-mode"><div class="annual-mode-switch"><button class="annual-mode active">标准配置</button><button class="annual-mode">公式配置</button></div></div>
     </section>
 
     <div class="annual-generation-group-title"><span class="annual-generation-group-no">1</span>额度生成资格</div>
@@ -367,7 +370,7 @@ function annualOehrPageHtml(){return `
       <div class="annual-config-body annual-quota-eligibility">
         ${conditionSetHtml([
           condition("员工任职信息·人员状态","等于","正式"),
-          condition("系统计算·截至额度计算日连续工作月数","大于等于","12"),
+          condition("年假额度计算·截至额度计算日工作月数","大于等于","12"),
           condition("员工任职信息·职位名称","不包含","司机")
         ],"同时满足全部条件（且）","annual-eligibility-condition-list",annualEligibilityFields)}
         <div class="field-note">系统在每次生成或重算额度时，读取员工当日有效的任职和档案信息；不满足条件时，不生成本次年假额度。</div>
@@ -475,13 +478,12 @@ function annualOehrPageHtml(){return `
 
 function annualEligibilitySectionHtml(){return `
   <section class="annual-config-section">
-    <div class="annual-config-head"><div class="annual-config-title">资格条件 <span class="hint" data-tip="只决定是否给员工生成年假额度，不代替休假申请资格。">?</span></div><div class="annual-config-desc">符合以下条件的员工参加年假额度计算。</div></div>
     <div class="annual-config-body annual-quota-eligibility">
-      ${conditionSetHtml([
-        condition("员工任职信息·人员状态","等于","正式"),
-        condition("系统计算·截至额度计算日连续工作月数","大于等于","12"),
-        condition("员工任职信息·职位名称","不包含","司机")
-      ],"同时满足全部条件（且）","annual-eligibility-condition-list",annualEligibilityFields)}
+      <div class="annual-eligibility-switch-row"><button type="button" class="switch-toggle" id="annualEligibilityEnabled" aria-pressed="false"></button><span>设置额度获得条件</span><span class="hint" data-tip="用于在方案适用范围内进一步判断哪些员工可以获得年假额度，例如排除特定职位；不代替休假申请资格。">?</span></div>
+      <div id="annualEligibilityConditionBody" style="display:none">
+        ${conditionSetHtml([],"同时满足全部条件（且）","annual-eligibility-condition-list",annualEligibilityFields,true,"已启用额度获得条件，请至少添加一条条件。")}
+      </div>
+      <div class="section-result" id="annualEligibilityResult"><b>当前结果：</b>未设置额外条件；方案适用范围内员工均可参加年假额度计算。</div>
     </div>
   </section>`;}
 
@@ -490,27 +492,27 @@ function annualStandardConfigHtml(){return `
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">基本信息</div></div>
       <div class="annual-config-body">${businessFieldsHtml([
-        {label:"人员状态",value:"正式",options:["正式","试用","正式、试用"],required:true},
-        {label:"最小单位",value:"天",options:["天","小时"],required:true},
-        {label:"天转换为小时数",value:"8",type:"number",suffix:"小时",required:true},
-        {label:"小数位数",value:"2位",options:["0位","1位","2位","3位","4位"],required:true},
-        {label:"进位方式",value:"四舍五入",options:["四舍五入","向上取整","向下取整"],required:true}
+        {label:"人员状态",value:"请选择",options:["请选择","正式","试用","正式、试用"],required:true},
+        {label:"最小单位",value:"请选择",options:["请选择","天","小时"],required:true},
+        {label:"天转换为小时数",value:"",type:"number",suffix:"小时",required:true},
+        {label:"小数位数",value:"请选择",options:["请选择","0位","1位","2位","3位","4位"],required:true},
+        {label:"进位方式",value:"请选择",options:["请选择","四舍五入","向上取整","向下取整"],required:true}
       ])}</div>
     </section>
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">额度配置规则</div></div>
       <div class="annual-config-body">${businessFieldsHtml([
-        {label:"年假规则",value:"按司龄匹配额度",options:["按司龄匹配额度","按工龄匹配额度","按出勤时长匹配额度"],required:true},
-        {label:"生成频率",value:"每年",options:["每年","每月","每日","每考勤周期"],required:true},
-        {label:"计算精度",value:"年",options:["年","月","考勤周期"],required:true},
-        {label:"起算日期",value:"入职日期",options:["入职日期","工龄起算日"],required:true},
-        {label:"年假周期",value:"自然年",options:["自然年","自定义周期"],required:true}
+        {label:"年假规则",value:"请选择",options:["请选择","按司龄匹配额度","按工龄匹配额度","按出勤时长匹配额度"],required:true},
+        {label:"生成频率",value:"请选择",options:["请选择","每年","每月","每日","每考勤周期"],required:true},
+        {label:"计算精度",value:"请选择",options:["请选择","年","月","考勤周期"],required:true},
+        {label:"起算日期",value:"请选择",options:["请选择","入职日期","工龄起算日"],required:true},
+        {label:"年假周期",value:"请选择",options:["请选择","自然年","自定义周期"],required:true}
       ])}</div>
     </section>
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">特殊规则</div></div>
       <div class="annual-config-body">${businessFieldsHtml([
-        {label:"全年应出勤小时数",value:"2000",type:"number",suffix:"小时"},
+        {label:"全年应出勤小时数",value:"",type:"number",suffix:"小时"},
         {label:"累积限额",value:"",type:"number",suffix:"小时"},
         {label:"特殊系数",value:"",type:"number"}
       ])}</div>
@@ -518,17 +520,15 @@ function annualStandardConfigHtml(){return `
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">有效期</div></div>
       <div class="annual-config-body">${businessFieldsHtml([
-        {label:"额度有效期",value:"次年12月31日后失效",options:["年假周期结束后失效","次年12月31日后失效","永久有效"],required:true}
+        {label:"额度有效期",value:"请选择",options:["请选择","年假周期结束后失效","次年12月31日后失效","永久有效"],required:true}
       ])}</div>
     </section>
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">额度阶梯</div><div class="annual-config-desc">按选择的年假规则匹配标准额度。</div></div>
       <div class="annual-config-body">
-        ${businessFieldsHtml([{label:"额度计算模式",value:"按司龄匹配额度",options:["按司龄匹配额度","按工龄匹配额度","按出勤时长匹配额度"],required:true}])}
+        ${businessFieldsHtml([{label:"额度计算模式",value:"请选择",options:["请选择","按司龄匹配额度","按工龄匹配额度","按出勤时长匹配额度"],required:true}])}
         <div class="table-wrap" style="margin-top:14px"><table class="oehr-ladder"><thead><tr><th>开始司龄(&gt;)</th><th>结束司龄(&lt;=)</th><th>职级</th><th>标准额度（天）</th><th>不享有条件（非必填）</th><th>操作</th></tr></thead><tbody>
-          <tr><td>0</td><td>9.99</td><td class="oehr-muted">—</td><td>5</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
-          <tr><td>9.99</td><td>19.99</td><td class="oehr-muted">—</td><td>10</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
-          <tr><td>19.99</td><td>999</td><td class="oehr-muted">—</td><td>15</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
+          <tr><td colspan="6" class="oehr-muted" style="text-align:center">尚未配置额度阶梯</td></tr>
         </tbody></table></div><button class="btn" style="margin-top:10px">＋ 添加</button>
       </div>
     </section>
@@ -539,13 +539,13 @@ function annualFormulaConfigHtml(){return `
     <div class="annual-config-head"><div class="annual-config-title">发放周期 <button type="button" class="hint hint-action" id="annualCycleHelp" data-tip="查看字段说明" aria-label="查看发放周期字段说明">?</button></div></div>
     <div class="annual-config-body">
       ${businessFieldsHtml([
-        {label:"年假周期",value:"自然年",options:["自然年","自定义周期"],required:true},
-        {label:"归属年度",value:"周期开始日期所在年度",options:["周期开始日期所在年度","周期结束日期所在年度"],required:true}
+        {label:"年假周期",value:"请选择",options:["请选择","自然年","自定义周期"],required:true},
+        {label:"归属年度",value:"请选择",options:["请选择","周期开始日期所在年度","周期结束日期所在年度"],required:true}
       ])}
       <div class="business-field oehr-full-field" style="margin-top:14px"><span class="form-label"><span class="required">*</span>有效期</span><div class="oehr-radio-line">
         <label class="oehr-radio-option"><input type="radio" name="annualValidity">年假周期结束后失效</label>
-        <label class="oehr-radio-option"><input type="radio" name="annualValidity" checked>固定日期后失效</label>
-        <span class="oehr-radio-inline"><select class="form-select"><option selected>次年</option><option>当年</option></select><input class="form-input" value="12/31" aria-label="固定日期"><span>后失效</span></span>
+        <label class="oehr-radio-option"><input type="radio" name="annualValidity">固定日期后失效</label>
+        <span class="oehr-radio-inline"><select class="form-select"><option selected>请选择</option><option>次年</option><option>当年</option></select><input class="form-input" value="" aria-label="固定日期"><span>后失效</span></span>
       </div></div>
     </div>
   </section>
@@ -553,12 +553,12 @@ function annualFormulaConfigHtml(){return `
     <div class="annual-config-head"><div class="annual-config-title">发放规则 <button type="button" class="hint hint-action" id="annualDistributionHelp" data-tip="查看字段说明" aria-label="查看发放规则字段说明">?</button></div></div>
     <div class="annual-config-body">
       ${businessFieldsHtml([
-        {label:"发放人员状态",value:"正式、试用",options:["正式","试用","正式、试用"],required:true},
-        {label:"发放方式",value:"实发",options:["实发","预发"],required:true}
+        {label:"发放人员状态",value:"请选择",options:["请选择","正式","试用","正式、试用"],required:true},
+        {label:"发放方式",value:"请选择",options:["请选择","实发","预发"],required:true}
       ])}
       <div class="business-field oehr-full-field" style="margin-top:14px"><span class="form-label"><span class="required">*</span>发放时间</span><div class="oehr-radio-line">
-        <label class="oehr-radio-option"><input type="radio" name="annualReleaseTime" checked>不区分入职当年／月</label>
-        <span class="oehr-radio-inline"><select class="form-select"><option selected>每日</option><option>每月</option><option>每年</option><option>每考勤周期</option><option>每入职日期</option></select></span>
+        <label class="oehr-radio-option"><input type="radio" name="annualReleaseTime">不区分入职当年／月</label>
+        <span class="oehr-radio-inline"><select class="form-select"><option selected>请选择</option><option>每日</option><option>每月</option><option>每年</option><option>每考勤周期</option><option>每入职日期</option></select></span>
         <label class="oehr-radio-option"><input type="radio" name="annualReleaseTime">区分入职当年／月</label>
       </div></div>
     </div>
@@ -567,21 +567,19 @@ function annualFormulaConfigHtml(){return `
     <div class="annual-config-head"><div class="annual-config-title">额度计算 <button type="button" class="hint hint-action" id="annualCalculationHelp" data-tip="查看字段说明" aria-label="查看额度计算字段说明">?</button></div></div>
     <div class="annual-config-body">
       ${businessFieldsHtml([
-        {label:"是否含标准额度",value:"是",options:["是","否"],required:true},
-        {label:"额度匹配模式",value:"司龄（入职日期）",options:["司龄（入职日期）","工龄（工龄起算日）","出勤时长"],required:true},
-        {label:"是否管控标准额度上限",value:"否",options:["否","是"],required:true},
-        {label:"额度跨阶折算方式",value:"按比例折算",options:["不折算，按跨阶前档位发放","不折算，按跨阶后档位发放","按比例折算","不涉及"],required:true,actionTipId:"annualCrossTierHelp",actionTipText:"查看跨阶折算方式",actionTipLabel:"查看额度跨阶折算方式"}
+        {label:"是否含标准额度",value:"请选择",options:["请选择","是","否"],required:true},
+        {label:"额度匹配模式",value:"请选择",options:["请选择","司龄（入职日期）","工龄（工龄起算日）","出勤时长"],required:true},
+        {label:"是否管控标准额度上限",value:"请选择",options:["请选择","否","是"],required:true},
+        {label:"额度跨阶折算方式",value:"请选择",options:["请选择","不折算，按跨阶前档位发放","不折算，按跨阶后档位发放","按比例折算","不涉及"],required:true,actionTipId:"annualCrossTierHelp",actionTipText:"查看跨阶折算方式",actionTipLabel:"查看额度跨阶折算方式"}
       ])}
-      <div class="business-field oehr-full-field" style="margin-top:14px"><span class="form-label"><span class="required">*</span>计算规则 <button type="button" class="hint hint-action" id="annualFormulaHelp" data-tip="查看公式和试算说明" aria-label="查看年假计算公式说明">?</button></span><div class="oehr-formula-row"><div class="annual-formula-code">取标准额度() × 取自然年实际在职天数(入职日期) ÷ 取自然年总天数()</div><button class="btn" id="editAnnualFormula">设置公式</button></div></div>
+      <div class="business-field oehr-full-field" style="margin-top:14px"><span class="form-label"><span class="required">*</span>计算规则 <button type="button" class="hint hint-action" id="annualFormulaHelp" data-tip="查看公式和试算说明" aria-label="查看年假计算公式说明">?</button></span><div class="oehr-formula-row"><div class="annual-formula-code oehr-muted">尚未设置公式</div><button class="btn" id="editAnnualFormula">设置公式</button></div></div>
       <div style="margin-top:14px">${businessFieldsHtml([
-        {label:"计算精度",value:"年",options:["年","月","考勤周期"],required:true},
-        {label:"进位方式",value:"四舍五入",options:["四舍五入","向上取整","向下取整"],required:true},
-        {label:"小数位数",value:"2位",options:["0位","1位","2位","3位","4位"],required:true}
+        {label:"计算精度",value:"请选择",options:["请选择","年","月","考勤周期"],required:true},
+        {label:"进位方式",value:"请选择",options:["请选择","四舍五入","向上取整","向下取整"],required:true},
+        {label:"小数位数",value:"请选择",options:["请选择","0位","1位","2位","3位","4位"],required:true}
       ])}</div>
       <div class="business-field oehr-full-field" style="margin-top:14px"><span class="form-label"><span class="required">*</span>标准额度阶梯设置</span><div class="table-wrap"><table class="oehr-ladder"><thead><tr><th>开始司龄(&gt;)</th><th>结束司龄(&lt;=)</th><th>职级</th><th>标准额度（小时）</th><th>不享有条件（非必填）</th><th>操作</th></tr></thead><tbody>
-        <tr><td>0</td><td>9.99</td><td class="oehr-muted">—</td><td>40</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
-        <tr><td>9.99</td><td>19.99</td><td class="oehr-muted">—</td><td>80</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
-        <tr><td>19.99</td><td>999</td><td class="oehr-muted">—</td><td>120</td><td class="oehr-muted">—</td><td><button class="btn-text">删除</button></td></tr>
+        <tr><td colspan="6" class="oehr-muted" style="text-align:center">尚未配置标准额度阶梯</td></tr>
       </tbody></table></div><button class="btn" style="margin-top:10px">＋ 添加</button></div>
     </div>
   </section>`;}
@@ -604,15 +602,15 @@ function annualOehrPageHtmlV2(){return `
   <div class="annual-step-pane active" data-annual-pane="grant">
     <div class="quota-generation-flow">
       <div class="quota-stage-group">
-        <div class="quota-stage-heading"><span class="quota-stage-number">1</span><div><div class="quota-stage-title">哪些员工可以获得年假额度</div><div class="quota-stage-desc">先判断员工是否参加本次年假额度计算。</div></div></div>
+        <div class="quota-stage-heading"><span class="quota-stage-number">1</span><div><div class="quota-stage-title">哪些员工可以获得年假额度</div><div class="quota-stage-desc">默认覆盖方案适用范围内员工；如需排除司机等员工，再设置额外条件。</div></div></div>
         ${annualEligibilitySectionHtml()}
       </div>
       <div class="quota-stage-group">
         <div class="quota-stage-heading"><span class="quota-stage-number">2</span><div><div class="quota-stage-title">额度如何计算与发放</div><div class="quota-stage-desc">选择一种计算方式，并维护该方式对应的发放、额度与有效期字段。</div></div></div>
-        <div class="annual-mode-card"><div class="annual-mode-card-row"><b>额度计算方式</b><div class="annual-mode-switch"><button class="annual-mode" data-annual-mode="standard">标准配置</button><button class="annual-mode active" data-annual-mode="formula">公式配置</button></div><span class="annual-mode-explain">两种方式共用上方额度生成资格。</span></div></div>
+        <div class="annual-mode-card"><div class="annual-mode-card-row"><b>额度计算方式</b><div class="annual-mode-switch"><button class="annual-mode active" data-annual-mode="standard">标准配置</button><button class="annual-mode" data-annual-mode="formula">公式配置</button></div><span class="annual-mode-explain">新建时默认选择标准配置；未填写字段不生成任何年假额度。</span></div></div>
         <div class="annual-mode-panels">
-          <div class="annual-config-mode-panel" data-annual-mode-panel="standard">${annualStandardConfigHtml()}</div>
-          <div class="annual-config-mode-panel active" data-annual-mode-panel="formula">${annualFormulaConfigHtml()}</div>
+          <div class="annual-config-mode-panel active" data-annual-mode-panel="standard">${annualStandardConfigHtml()}</div>
+          <div class="annual-config-mode-panel" data-annual-mode-panel="formula">${annualFormulaConfigHtml()}</div>
         </div>
       </div>
       <div class="quota-stage-group">
@@ -622,27 +620,27 @@ function annualOehrPageHtmlV2(){return `
     </div>
   </div>
   <div class="annual-step-pane" data-annual-pane="carry">
-    <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">结转方式</div></div><div class="annual-config-body"><div class="oehr-radio-line"><label class="oehr-radio-option"><input type="radio" name="annualCarry">不结转，过期失效</label><label class="oehr-radio-option"><input type="radio" name="annualCarry" checked>余额转下期</label></div></div></section>
-    <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">转下期设置</div></div><div class="annual-config-body"><div class="business-field"><span class="form-label"><span class="required">*</span>有效期</span><div class="oehr-radio-line"><label class="oehr-radio-option"><input type="radio" name="carryValidity">年假周期结束后失效</label><label class="oehr-radio-option"><input type="radio" name="carryValidity" checked>固定日期后失效</label><span class="oehr-radio-inline"><select class="form-select"><option selected>次年</option><option>当年</option></select><input class="form-input" value="12/31" aria-label="结转失效日期"><span>后失效</span></span><label class="oehr-radio-option"><input type="radio" name="carryValidity">永久有效</label></div></div></div></section>
+    <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">结转方式</div></div><div class="annual-config-body"><div class="oehr-radio-line"><label class="oehr-radio-option"><input type="radio" name="annualCarry">不结转，过期失效</label><label class="oehr-radio-option"><input type="radio" name="annualCarry">余额转下期</label></div></div></section>
+    <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">转下期设置</div></div><div class="annual-config-body"><div class="business-field"><span class="form-label"><span class="required">*</span>有效期</span><div class="oehr-radio-line"><label class="oehr-radio-option"><input type="radio" name="carryValidity">年假周期结束后失效</label><label class="oehr-radio-option"><input type="radio" name="carryValidity">固定日期后失效</label><span class="oehr-radio-inline"><select class="form-select"><option selected>请选择</option><option>次年</option><option>当年</option></select><input class="form-input" value="" aria-label="结转失效日期"><span>后失效</span></span><label class="oehr-radio-option"><input type="radio" name="carryValidity">永久有效</label></div></div></div></section>
   </div>
   <div class="annual-step-pane" data-annual-pane="settle">
     <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">过期结算</div></div><div class="annual-config-body">
       <div class="oehr-radio-line">
-        <label class="oehr-radio-option"><input type="radio" name="expirySettle" value="none" checked>不结算</label>
+        <label class="oehr-radio-option"><input type="radio" name="expirySettle" value="none">不结算</label>
         <label class="oehr-radio-option"><input type="radio" name="expirySettle" value="conditional">按条件结算</label>
         <label class="oehr-radio-option"><input type="radio" name="expirySettle" value="all">全部结算</label>
       </div>
       <div class="settlement-condition-row" id="annualExpiryConditionPanel" style="display:none">
         <span>当总失效额度</span>
         <select class="form-select" id="annualExpiryOperator"><option>小于</option><option>小于等于</option><option>大于</option><option>大于等于</option></select>
-        <div class="input-with-suffix"><input class="form-input" id="annualExpiryThreshold" type="number" value="8" min="0"><span class="input-suffix">小时</span></div>
+        <div class="input-with-suffix"><input class="form-input" id="annualExpiryThreshold" type="number" value="" min="0"><span class="input-suffix">小时</span></div>
         <span>时不结算，其余全部结算</span>
       </div>
       <div class="settlement-result" id="annualExpirySettlementResult"></div>
     </div></section>
     <section class="annual-config-section"><div class="annual-config-head"><div class="annual-config-title">离职结算</div></div><div class="annual-config-body">
       <div class="oehr-radio-line">
-        <label class="oehr-radio-option"><input type="radio" name="leaveSettle" value="none" checked>不结算</label>
+        <label class="oehr-radio-option"><input type="radio" name="leaveSettle" value="none">不结算</label>
         <label class="oehr-radio-option"><input type="radio" name="leaveSettle" value="all">全部结算</label>
       </div>
       <div class="settlement-result" id="annualLeaveSettlementResult"></div>
@@ -907,14 +905,15 @@ function bindAnnualSettlementInteractions(){
   var expiryRadios=document.querySelectorAll('input[name="expirySettle"]'),leaveRadios=document.querySelectorAll('input[name="leaveSettle"]'),panel=document.getElementById("annualExpiryConditionPanel"),operator=document.getElementById("annualExpiryOperator"),threshold=document.getElementById("annualExpiryThreshold"),expiryResult=document.getElementById("annualExpirySettlementResult"),leaveResult=document.getElementById("annualLeaveSettlementResult");
   function selectedValue(nodes,fallback){var checked=Array.from(nodes).find(function(node){return node.checked;});return checked?checked.value:fallback;}
   function refreshExpiry(){
-    var mode=selectedValue(expiryRadios,"none"),value=threshold&&threshold.value!==""?threshold.value:"0",relation=operator?operator.value:"小于";
+    var mode=selectedValue(expiryRadios,""),value=threshold&&threshold.value!==""?threshold.value:"—",relation=operator?operator.value:"小于";
     if(panel){panel.style.display=mode==="conditional"?"flex":"none";}
     if(!expiryResult){return;}
-    if(mode==="none"){expiryResult.textContent="当前规则：年假额度到期后不结算。";}
+    if(!mode){expiryResult.textContent="当前规则：尚未配置过期结算方式。";}
+    else if(mode==="none"){expiryResult.textContent="当前规则：年假额度到期后不结算。";}
     else if(mode==="all"){expiryResult.textContent="当前规则：年假额度到期后全部结算。";}
     else{expiryResult.textContent="当前规则：总失效额度"+relation+value+"小时不结算，其余全部结算。";}
   }
-  function refreshLeave(){if(!leaveResult){return;}leaveResult.textContent=selectedValue(leaveRadios,"none")==="all"?"当前规则：员工离职时，剩余年假额度全部结算。":"当前规则：员工离职时，剩余年假额度不结算。";}
+  function refreshLeave(){if(!leaveResult){return;}var mode=selectedValue(leaveRadios,"");leaveResult.textContent=!mode?"当前规则：尚未配置离职结算方式。":mode==="all"?"当前规则：员工离职时，剩余年假额度全部结算。":"当前规则：员工离职时，剩余年假额度不结算。";}
   expiryRadios.forEach(function(node){node.onchange=refreshExpiry;});
   leaveRadios.forEach(function(node){node.onchange=refreshLeave;});
   if(operator){operator.onchange=refreshExpiry;}
@@ -925,6 +924,16 @@ function bindAnnualSettlementInteractions(){
 function bindAnnualConfigPage(){
   document.querySelectorAll(".annual-step").forEach(function(step){step.onclick=function(){var key=step.dataset.annualStep;document.querySelectorAll(".annual-step").forEach(function(x){x.classList.toggle("active",x===step);});document.querySelectorAll(".annual-step-pane").forEach(function(x){x.classList.toggle("active",x.dataset.annualPane===key);});};});
   document.querySelectorAll(".annual-mode[data-annual-mode]").forEach(function(button){button.onclick=function(){var mode=button.dataset.annualMode;document.querySelectorAll(".annual-mode[data-annual-mode]").forEach(function(x){x.classList.toggle("active",x===button);});document.querySelectorAll(".annual-config-mode-panel").forEach(function(panel){panel.classList.toggle("active",panel.dataset.annualModePanel===mode);});};});
+  var eligibilityToggle=document.getElementById("annualEligibilityEnabled"),eligibilityBody=document.getElementById("annualEligibilityConditionBody"),eligibilityResult=document.getElementById("annualEligibilityResult");
+  function syncAnnualEligibility(){
+    if(!eligibilityToggle||!eligibilityBody){return;}
+    eligibilityToggle.classList.toggle("on",annualEligibilityEnabled);
+    eligibilityToggle.setAttribute("aria-pressed",String(annualEligibilityEnabled));
+    eligibilityBody.style.display=annualEligibilityEnabled?"block":"none";
+    if(eligibilityResult){eligibilityResult.innerHTML=annualEligibilityEnabled?"<b>当前结果：</b>仅符合下方条件的员工可以获得年假额度。":"<b>当前结果：</b>未设置额外条件；方案适用范围内员工均可参加年假额度计算。";}
+  }
+  if(eligibilityToggle){eligibilityToggle.onclick=function(){annualEligibilityEnabled=!annualEligibilityEnabled;syncAnnualEligibility();planFormDirty=true;};}
+  syncAnnualEligibility();
   var save=document.getElementById("saveAnnualConfig");if(save){save.onclick=function(){showToast("年假配置已保存");};}
   var sectionHelpConfigs=[["annualCycleHelp","发放周期字段释义",annualCycleHelpHtml],["annualDistributionHelp","发放规则字段释义",annualDistributionHelpHtml],["annualCalculationHelp","额度计算字段释义",annualCalculationHelpHtml]];
   sectionHelpConfigs.forEach(function(item){var trigger=document.getElementById(item[0]);if(trigger){trigger.onclick=function(e){e.preventDefault();e.stopPropagation();openAnnualHelpDrawer(item[1],item[2]());};}});
@@ -1017,7 +1026,7 @@ function quotaConfigControlHtml(key,label){var enabled=quotaConfigEnabled[key]!=
 function bindQuotaConfigControl(panel,key,label){var toggle=document.getElementById(key+"ConfigEnabled"),content=panel.querySelector(".annual-framework");if(!toggle||!content){return;}content.classList.add("quota-config-content");function sync(){var enabled=quotaConfigEnabled[key]!==false;toggle.classList.toggle("on",enabled);toggle.setAttribute("aria-pressed",String(enabled));content.classList.toggle("config-disabled",!enabled);}toggle.onclick=function(){quotaConfigEnabled[key]=!(quotaConfigEnabled[key]!==false);sync();planFormDirty=true;showToast(label+(quotaConfigEnabled[key]?"已启用":"已停用"));};sync();}
 function renderBoundary(key){
   var d=boundary[key],panel=document.getElementById("panel-"+key);
-  if(key==="annual"){panel.innerHTML=quotaConfigControlHtml(key,"年假配置")+annualOehrPageHtmlV2();bindQuotaConfigControl(panel,key,"年假配置");bindAnnualConfigPage();bindConditionRows();return;}
+  if(key==="annual"){panel.innerHTML=annualOehrPageHtmlV2();bindAnnualConfigPage();bindConditionRows();return;}
   if(key==="comp"){panel.innerHTML=quotaConfigControlHtml(key,"调休假配置")+compOehrPageHtml();bindQuotaConfigControl(panel,key,"调休假配置");bindCompConfigPage();return;}
   if(key==="sick"){panel.innerHTML=quotaConfigControlHtml(key,"病假配置")+sickQuotaPageHtml();bindQuotaConfigControl(panel,key,"病假配置");bindSickConfigPage();return;}
   panel.innerHTML='<div class="empty-boundary"><div class="boundary-box"><div class="boundary-title">'+d.title+'</div><div class="boundary-text">'+d.text+'</div><div class="chips">'+d.chips.map(function(x){return '<span class="chip">'+x+'</span>';}).join("")+'</div></div></div>';
@@ -1025,7 +1034,8 @@ function renderBoundary(key){
 function switchTab(key){document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("active",x.dataset.tab===key);});document.querySelectorAll(".tab-panel").forEach(function(x){x.classList.toggle("active",x.id==="panel-"+key);});}
 
 function unifiedBaseHtml(leave,isNew){var leaveNames=[leave.name||"请选择","请选择"].concat(leaves.map(function(x){return x.name;}));return businessSectionHtml("1. 基本信息","",businessFieldsHtml([{label:"休假类型",value:leave.name||"请选择",options:leaveNames,id:"leaveTypeSelect",disabled:!isNew,required:true},{label:"计量单位",value:leave.unit||"小时",options:["小时","天"],id:"leaveUnit",required:true,direct:true,tip:"决定员工按天还是按小时申请，并作为最多可休、周期上限及附件时长阈值的单位。单次最小/最大时长和日最大时长始终按小时配置。"},{label:"是否带薪",value:leave.paid||"是",options:["是","否"],id:"paidSettingUnified",required:true,direct:true}]));}
-function unifiedCalculationHtml(leave){var isDay=(leave.unit||"小时")==="天",requestTip=isDay?"按天假别仍固定按小时配置，用于自由班次没有有效工作时长时的申请与扣减兜底。":"用于校验一张休假单允许提交的休假小时数。",dailyTip=isDay?"按天申请时每个可计入日计1天；生成考勤小时时，固定班次不超过班次工作时长，自由班次没有有效工作时长时使用该上限。":"同一天最多计入的休假小时数；每日试算结果不得超过该上限。";return businessSectionHtml("2. 本次申请时长计算","",businessFieldsHtml([{label:"单次最小时长",value:leave.min||"1",id:"leaveMin",required:true,type:"number",min:"0",suffix:"小时",tip:requestTip},{label:"单次最大时长",value:leave.max||"",id:"leaveMax",type:"number",min:"0",suffix:"小时",tip:requestTip},{label:"时长计算方式",value:leave.calc||"考勤日",options:["考勤日","自然日"],id:"calcType",required:true,direct:true,tip:"考勤日按员工排班计入；自然日连续计入休息日和法定节假日。"},{label:"日最大时长",value:leave.daily||"8",id:"dayMax",required:true,type:"number",min:"0",suffix:"小时",tip:dailyTip}])+'<div id="hourCalculationFields"'+(isDay?' style="display:none"':'')+'>'+businessFieldsHtml([{label:"舍位基数",value:leave.roundBase||"0.5",id:"roundingBase",required:true,type:"number",min:"0",suffix:"小时",tip:"例如0.5表示试算结果按0.5小时的倍数处理。"},{label:"舍位方式",value:leave.round||"向上取整",options:["向上取整","四舍五入","向下取整"],id:"roundingType",required:true,direct:true}])+'</div>');}
+function unitLinkageSummaryHtml(unit){return '<div class="unit-linkage-summary" id="unitLinkageSummary">'+(unit==="天"?"员工按天选择休假日期；单次最小/最大时长及日最大时长仍按小时校验休假工时。":"员工按小时申请；单次最小/最大时长及日最大时长均按小时校验。")+'</div>';}
+function unifiedCalculationHtml(leave){var isDay=(leave.unit||"小时")==="天",requestTip=isDay?"员工按天选择日期；本字段仍按小时校验整张申请单汇总后的休假工时，并为自由班次提供工时边界。":"用于校验一张休假单允许提交的休假小时数。",dailyTip=isDay?"员工按天选择日期；固定班次取班次应出勤时长与本值的较小值，自由班次无固定时长时使用本值。":"同一天最多计入的休假小时数；每日试算结果不得超过该上限。";return businessSectionHtml("2. 本次申请时长计算","",businessFieldsHtml([{label:"单次最小时长",value:leave.min||"1",id:"leaveMin",required:true,type:"number",min:"0",suffix:"小时",tip:requestTip},{label:"单次最大时长",value:leave.max||"",id:"leaveMax",type:"number",min:"0",suffix:"小时",tip:requestTip},{label:"时长计算方式",value:leave.calc||"考勤日",options:["考勤日","自然日"],id:"calcType",required:true,direct:true,tip:"考勤日按员工排班计入；自然日连续计入休息日和法定节假日。"},{label:"日最大时长",value:leave.daily||"8",id:"dayMax",required:true,type:"number",min:"0",suffix:"小时",tip:dailyTip}])+unitLinkageSummaryHtml(leave.unit||"小时")+'<div id="hourCalculationFields"'+(isDay?' style="display:none"':'')+'>'+businessFieldsHtml([{label:"舍位基数",value:leave.roundBase||"0.5",id:"roundingBase",required:true,type:"number",min:"0",suffix:"小时",tip:"例如0.5表示试算结果按0.5小时的倍数处理。"},{label:"舍位方式",value:leave.round||"向上取整",options:["向上取整","四舍五入","向下取整"],id:"roundingType",required:true,direct:true}])+'</div>');}
 
 function entitlementModeSelectHtml(key,current){var balanceAllowed=["annual","comp","sick"].indexOf(key)>-1,location=key==="annual"?"年假配置":key==="comp"?"调休假配置":key==="sick"?"病假配置":"对应额度配置",tip=balanceAllowed?"选择“按可用额度控制”后，额度生成、有效期、结转和结算在“"+location+"”维护；本页只决定申请时是否受可用额度限制。":"当前假别没有独立额度配置，因此不能选择“按可用额度控制”。";return '<div class="entitlement-mode-field"><div class="form-label"><span class="required">*</span>可休时长控制方式 <span class="hint" data-tip="'+tip+'">?</span></div><input type="hidden" id="entitlementMode" value="'+current+'"><div class="entitlement-choice-grid">'+entitlementModes.map(function(x){var disabled=x==="按可用余额控制"&&!balanceAllowed;return '<button type="button" class="entitlement-choice '+(x===current?'active ':'')+(disabled?'disabled':'')+'" data-value="'+x+'"'+(disabled?' disabled':'')+'><span class="entitlement-choice-title">'+entitlementModeLabel(x)+'</span><span class="entitlement-choice-desc">'+entitlementModeDescription(x)+'</span></button>';}).join("")+'</div></div>';}
 function gestationParts(value){var match=String(value||"").match(/(\d+)\s*周(?:\s*\+?\s*(\d+)\s*天)?/);return {weeks:match?match[1]:"",days:match&&match[2]?match[2]:"0"};}
@@ -1037,7 +1047,7 @@ function multiOptionListHtml(values,current){var selected=enumValues(current);re
 function fieldValueControl(field,value,operator){var meta=findField(field),type=conditionFieldType(field);if(field==="休假申请单·孕周"){var p=gestationParts(value);return '<span class="condition-value gestation-control" data-value="'+(value||"")+'"><input class="form-input gestation-week" type="number" min="0" value="'+p.weeks+'"><span>周</span><input class="form-input gestation-day" type="number" min="0" max="6" value="'+p.days+'"><span>天</span></span>';}if(meta&&meta.values){var multi=operator==="是以下任一项"||operator==="不是以下任一项"||operator==="包含任一项"||operator==="包含全部项"||operator==="不包含任一项";if(multi){return '<select class="form-select condition-value condition-multi-value" multiple aria-label="条件值，可多选">'+multiOptionListHtml(meta.values.concat(enumValues(value)),value)+'</select>';}return '<select class="form-select condition-value">'+optionListHtml(meta.values.concat([value]),value)+'</select>';}return '<input class="form-input condition-value" type="'+(type==="date"?"date":type==="number"?"number":"text")+'" value="'+(value||"")+'" placeholder="请输入或选择条件值">';}
 function conditionValueCellHtml(field,value,operator){return conditionNeedsValue(operator)?fieldValueControl(field,value,operator):'<span class="condition-presence-value">无需填写具体值</span><input class="condition-value" type="hidden" value="">';}
 function structuredConditionRowHtml(row,allowedFields){var fields=allowedFields&&allowedFields.length?allowedFields:fieldCatalog.map(function(x){return x.field;});row=row||condition(fields[0]||"员工档案·员工类型","等于","");var operators=conditionOperatorsForField(row.field),selected=operators.indexOf(row.operator)>-1?row.operator:operators[0];return '<div class="condition-row structured-condition-row"><select class="form-select condition-field">'+optionListHtml(fields,row.field)+'</select><select class="form-select condition-operator">'+optionListHtml(operators,selected)+'</select><span class="condition-value-cell">'+conditionValueCellHtml(row.field,row.value,selected)+'</span><button type="button" class="btn-text remove-condition">删除</button></div>';}
-function conditionSetHtml(conditions,logic,scopeClass,allowedFields,required){var rows=conditions&&conditions.length?conditions:[],isRequiredEmpty=required&&!rows.length,addButton='<button type="button" class="btn add-structured-condition" data-scope="'+scopeClass+'">＋ 添加条件</button>',empty=isRequiredEmpty?'<div class="empty-condition-state rule-empty-state"><div><span class="rule-empty-badge">待完善</span>已启用申请资格，请至少添加一条条件。</div>'+addButton+'</div>':"";return '<div class="logic-row"'+(rows.length>1?'':' style="display:none"')+'><span>多条条件：</span><select class="form-select condition-logic"><option'+(logic!=="满足任一条件（或）"?' selected':'')+'>同时满足全部条件（且）</option><option'+(logic==="满足任一条件（或）"?' selected':'')+'>满足任一条件（或）</option></select></div><div class="condition-list '+scopeClass+'" data-required="'+(required?'true':'false')+'">'+empty+rows.map(function(row){return structuredConditionRowHtml(row,allowedFields);}).join("")+'</div><div class="sub-action"'+(isRequiredEmpty?' style="display:none"':'')+'>'+addButton+'</div>';}
+function conditionSetHtml(conditions,logic,scopeClass,allowedFields,required,emptyMessage){var rows=conditions&&conditions.length?conditions:[],isRequiredEmpty=required&&!rows.length,message=emptyMessage||"已启用申请资格，请至少添加一条条件。",addButton='<button type="button" class="btn add-structured-condition" data-scope="'+scopeClass+'">＋ 添加条件</button>',empty=isRequiredEmpty?'<div class="empty-condition-state rule-empty-state"><div><span class="rule-empty-badge">待完善</span>'+message+'</div>'+addButton+'</div>':"";return '<div class="logic-row"'+(rows.length>1?'':' style="display:none"')+'><span>多条条件：</span><select class="form-select condition-logic"><option'+(logic!=="满足任一条件（或）"?' selected':'')+'>同时满足全部条件（且）</option><option'+(logic==="满足任一条件（或）"?' selected':'')+'>满足任一条件（或）</option></select></div><div class="condition-list '+scopeClass+'" data-required="'+(required?'true':'false')+'" data-empty-message="'+message+'">'+empty+rows.map(function(row){return structuredConditionRowHtml(row,allowedFields);}).join("")+'</div><div class="sub-action"'+(isRequiredEmpty?' style="display:none"':'')+'>'+addButton+'</div>';}
 function fieldSourceSummaryHtml(fields){var unique=[];(fields||[]).forEach(function(field){if(unique.indexOf(field)<0){unique.push(field);}});if(!unique.length){return '';}return '<div class="system-result"><b>本规则读取的数据</b><br>'+unique.map(function(field){var meta=findField(field);return field+'：'+(meta?meta.note:'由该业务字段提供。');}).join('<br>')+'</div>';}
 function durationConditionCellHtml(r){var conditions=r.conditions||[],conditional=conditions.length>0;return '<div class="rule-condition-cell"><div class="condition-scope-line"><span>这条规则何时使用</span><select class="form-select duration-scope-mode"><option'+(!conditional?' selected':'')+'>所有申请</option><option'+(conditional?' selected':'')+'>满足条件时</option></select></div><div class="duration-condition-editor"'+(conditional?'':' style="display:none"')+'>'+conditionSetHtml(conditions,r.logic||"同时满足全部条件（且）","duration-condition-list")+'</div></div>';}
 function totalDurationRowHtml(r,leave){return '<tr class="duration-rule-row" data-kind="total"><td>'+durationConditionCellHtml(r)+'</td><td><div class="rule-value-inline"><input class="form-input duration-value" value="'+(r.duration||"")+'"><span>'+leave.unit+'</span></div></td><td><div class="rule-operation"><button type="button" class="btn-text remove-duration-rule">删除</button></div></td></tr>';}
@@ -1111,12 +1121,13 @@ var attachmentTypeLibrary=[
 var activeAttachmentRuleRow=null;
 var pendingAttachmentTypes=[];
 var editingAttachmentTypeIndex=-1;
+var pendingAttachmentTypeNameEn="";
 attachmentTypeLibrary.forEach(function(item){if(!item.state){item.state="启用";}if(!item.updatedBy){item.updatedBy="系统管理员";}if(!item.updatedAt){item.updatedAt="2026-07-25 10:00";}});
 attachmentTypeLibrary.forEach(function(item,index){
   if(!item.code){item.code="ATT"+String(index+1).padStart(3,"0");}
-  if(!item.scenes){item.scenes=["休假申请"];}
-  if(!item.formats){item.formats=["PDF","JPG/JPEG","PNG"];}
-  if(!item.maxSize){item.maxSize=20;}
+  if(!item.nameEn){item.nameEn="";}
+  if(!item.businesses){item.businesses=["考勤"];}
+  if(!item.description){item.description=item.note||"";}
   if(!item.createdBy){item.createdBy=item.updatedBy||"系统管理员";}
   if(!item.createdAt){item.createdAt=item.updatedAt||"2026-07-25 10:00";}
 });
@@ -1202,7 +1213,7 @@ function applyFormulaCheckResult(scope,editor,result){var value=result.ok?"通�
 function checkFormulaEditor(scope,editor,showResultToast){if(!editor){return {ok:false,message:"未找到需要检查的公式"};}var expected=formulaExpectedType(editor),result=validateFormulaText(editor.value,expected);applyFormulaCheckResult(scope,editor,result);if(showResultToast){showToast(result.ok?"公式检查通过":"公式检查未通过："+result.message);}if(!result.ok){editor.focus();}return result;}
 function checkAllFormulaEditors(scope){var editors=Array.from(scope.querySelectorAll(".formula-editor")),firstFailure=null;editors.forEach(function(editor){var container=editor.closest(".formula-panel,.annual-drawer-section-body")||scope,result=checkFormulaEditor(container,editor,false);if(!result.ok&&!firstFailure){firstFailure={editor:editor,result:result};}});return firstFailure?{ok:false,editor:firstFailure.editor,message:firstFailure.result.message}:{ok:true};}
 function bindFormulaEditors(){document.querySelectorAll(".formula-field-button,.formula-token").forEach(function(btn){btn.onclick=function(){insertFormulaToken(btn.dataset.editor,btn.dataset.token);};});document.querySelectorAll(".formula-editor").forEach(function(editor){editor.oninput=function(){resetActiveFormulaCheck();var container=editor.closest(".formula-panel,.annual-drawer-section-body"),panel=container&&container.querySelector(".formula-test-panel");if(panel){panel.classList.remove("show");panel.innerHTML="";}};});document.querySelectorAll(".formula-check").forEach(function(btn){btn.onclick=function(){var scope=btn.closest("#ruleFormulaConditionPanel,#ruleFormulaResult,#formulaConfigBody,.annual-drawer-section-body")||document,editor=scope.querySelector(".formula-editor");checkFormulaEditor(scope,editor,true);};});document.querySelectorAll(".formula-test").forEach(function(btn){btn.onclick=function(){var scope=btn.closest("#ruleFormulaConditionPanel,#ruleFormulaResult,#formulaConfigBody,.annual-drawer-section-body")||document,editor=scope.querySelector(".formula-editor");if(!editor){return;}var expected=formulaExpectedType(editor),result=checkFormulaEditor(scope,editor,false);if(!result.ok){showToast("公式检查未通过："+result.message);return;}var panel=scope.querySelector(".formula-test-panel");if(!panel){return;}panel.innerHTML=formulaTestPanelHtml(editor,expected);panel.classList.add("show");bindFormulaTestPanel(panel,editor,expected);showToast("公式检查通过，请填写示例数据");};});}
-function syncConditionSetState(list){if(!list){return;}var count=list.querySelectorAll(".structured-condition-row").length,container=list.parentElement,logic=container&&container.querySelector(".logic-row"),subAction=container&&container.querySelector(":scope > .sub-action"),empty=list.querySelector(".empty-condition-state"),scopeClass=Array.from(list.classList).filter(function(name){return name!=="condition-list";})[0]||"";if(list.dataset.required==="true"&&!count&&!empty){list.insertAdjacentHTML("afterbegin",'<div class="empty-condition-state rule-empty-state"><div><span class="rule-empty-badge">待完善</span>已启用申请资格，请至少添加一条条件。</div><button type="button" class="btn add-structured-condition" data-scope="'+scopeClass+'">＋ 添加条件</button></div>');}if(count&&empty){empty.remove();}if(logic){logic.style.display=count>1?"flex":"none";}if(subAction){subAction.style.display=list.dataset.required==="true"&&!count?"none":"block";}}
+function syncConditionSetState(list){if(!list){return;}var count=list.querySelectorAll(".structured-condition-row").length,container=list.parentElement,logic=container&&container.querySelector(".logic-row"),subAction=container&&container.querySelector(":scope > .sub-action"),empty=list.querySelector(".empty-condition-state"),scopeClass=Array.from(list.classList).filter(function(name){return name!=="condition-list";})[0]||"",message=list.dataset.emptyMessage||"已启用申请资格，请至少添加一条条件。";if(list.dataset.required==="true"&&!count&&!empty){list.insertAdjacentHTML("afterbegin",'<div class="empty-condition-state rule-empty-state"><div><span class="rule-empty-badge">待完善</span>'+message+'</div><button type="button" class="btn add-structured-condition" data-scope="'+scopeClass+'">＋ 添加条件</button></div>');}if(count&&empty){empty.remove();}if(logic){logic.style.display=count>1?"flex":"none";}if(subAction){subAction.style.display=list.dataset.required==="true"&&!count?"none":"block";}}
 function bindConditionRows(){
   document.querySelectorAll(".condition-field").forEach(function(select){
     select.onchange=function(){
@@ -1220,8 +1231,8 @@ function bindConditionRows(){
     };
   });
   document.querySelectorAll(".gestation-control").forEach(function(control){var week=control.querySelector(".gestation-week"),day=control.querySelector(".gestation-day"),sync=function(){var dayValue=Math.max(0,Math.min(6,Number(day.value||0)));day.value=String(dayValue);control.dataset.value=week.value===""?"":String(week.value)+"周"+dayValue+"天";};week.oninput=sync;day.oninput=sync;sync();});
-  document.querySelectorAll(".remove-condition").forEach(function(btn){btn.onclick=function(){var list=btn.closest(".condition-list");btn.closest(".structured-condition-row").remove();syncConditionSetState(list);if(btn.closest("#ruleEditorBody")){durationRuleEditorDirty=true;}else if(!btn.closest(".annual-quota-eligibility")){markLeaveFormDirty();}bindConditionRows();refreshRuleConditionSourceSummary();};});
-  document.querySelectorAll(".add-structured-condition").forEach(function(btn){btn.onclick=function(){var scope=btn.closest(".duration-rule-row,#conditionStandardPanel,#ruleEditorBody,.annual-quota-eligibility"),list=scope&&scope.querySelector("."+btn.dataset.scope);if(!list){return;}var fields=btn.closest(".annual-quota-eligibility")?annualEligibilityFields:null,empty=list.querySelector(".empty-condition-state");if(empty){empty.remove();}list.insertAdjacentHTML("beforeend",structuredConditionRowHtml(null,fields));syncConditionSetState(list);if(btn.closest("#ruleEditorBody")){durationRuleEditorDirty=true;}else if(!btn.closest(".annual-quota-eligibility")){markLeaveFormDirty();}bindConditionRows();refreshRuleConditionSourceSummary();};});
+  document.querySelectorAll(".remove-condition").forEach(function(btn){btn.onclick=function(){var list=btn.closest(".condition-list"),annual=!!btn.closest(".annual-quota-eligibility");btn.closest(".structured-condition-row").remove();syncConditionSetState(list);if(btn.closest("#ruleEditorBody")){durationRuleEditorDirty=true;}else if(annual){planFormDirty=true;}else{markLeaveFormDirty();}bindConditionRows();refreshRuleConditionSourceSummary();};});
+  document.querySelectorAll(".add-structured-condition").forEach(function(btn){btn.onclick=function(){var scope=btn.closest(".duration-rule-row,#conditionStandardPanel,#ruleEditorBody,.annual-quota-eligibility"),list=scope&&scope.querySelector("."+btn.dataset.scope);if(!list){return;}var annual=!!btn.closest(".annual-quota-eligibility"),fields=annual?annualEligibilityFields:null,empty=list.querySelector(".empty-condition-state");if(empty){empty.remove();}list.insertAdjacentHTML("beforeend",structuredConditionRowHtml(null,fields));syncConditionSetState(list);if(btn.closest("#ruleEditorBody")){durationRuleEditorDirty=true;}else if(annual){planFormDirty=true;}else{markLeaveFormDirty();}bindConditionRows();refreshRuleConditionSourceSummary();};});
   document.querySelectorAll(".condition-list").forEach(syncConditionSetState);
 }
 function durationRuleKind(mode){if(mode==="按周期限制使用"){return "periodic";}return "total";}
@@ -1238,22 +1249,25 @@ function refreshEntitlementDetail(key,leave,ruleData){document.getElementById("e
 function bindDurationRuleSummary(key,leave,ruleData){document.querySelectorAll(".duration-config-option").forEach(function(btn){btn.onclick=function(){var next=btn.dataset.durationMode;if(next===ruleData.durationMode){return;}ruleData.durationMode=next;markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);};});document.querySelectorAll(".edit-duration-summary").forEach(function(btn){btn.onclick=function(){openDurationRuleEditor(Number(btn.dataset.index),key,leave,ruleData);};});document.querySelectorAll(".copy-duration-summary").forEach(function(btn){btn.onclick=function(){var source=ruleData.durationRules[Number(btn.dataset.index)];if(ruleScopeType(source)==="all"){showToast("“其他情况（兜底）”只能配置一条，不能复制");return;}var copy=JSON.parse(JSON.stringify(source));copy.name="";ruleData.durationRules.push(copy);normalizeDurationRuleOrder(ruleData.durationRules);markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);showToast("规则已复制，请修改后确定");};});document.querySelectorAll(".delete-duration-summary").forEach(function(btn){btn.onclick=function(){if(!window.confirm("确定删除这条时长规则吗？")){return;}ruleData.durationRules.splice(Number(btn.dataset.index),1);markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);showToast("规则已删除");};});var draggedIndex=-1;document.querySelectorAll(".duration-summary-row").forEach(function(row){if(row.dataset.fixed==="true"){return;}row.ondragstart=function(e){draggedIndex=Number(row.dataset.index);row.classList.add("dragging");e.dataTransfer.effectAllowed="move";};row.ondragover=function(e){e.preventDefault();row.classList.add("drag-over");e.dataTransfer.dropEffect="move";};row.ondragleave=function(){row.classList.remove("drag-over");};row.ondrop=function(e){e.preventDefault();var targetIndex=Number(row.dataset.index);if(draggedIndex<0||targetIndex===draggedIndex){return;}var item=ruleData.durationRules.splice(draggedIndex,1)[0];ruleData.durationRules.splice(targetIndex,0,item);normalizeDurationRuleOrder(ruleData.durationRules);markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);showToast("规则顺序已调整");};row.ondragend=function(){document.querySelectorAll(".duration-summary-row").forEach(function(item){item.classList.remove("dragging","drag-over");});draggedIndex=-1;};});document.querySelectorAll(".add-condition-duration-summary").forEach(function(btn){btn.onclick=function(){openDurationRuleEditor(-1,key,leave,ruleData,"conditional");};});document.querySelectorAll(".add-fallback-duration-summary").forEach(function(btn){btn.onclick=function(){if((ruleData.durationRules||[]).some(function(r){return ruleScopeType(r)==="all";})){showToast("已配置其他情况（兜底）");return;}openDurationRuleEditor(-1,key,leave,ruleData,"all");};});document.querySelectorAll(".configure-duration-formula").forEach(function(btn){btn.onclick=function(){openDurationFormula(false,leave,ruleData);};});document.querySelectorAll(".check-duration-formula").forEach(function(btn){btn.onclick=function(){openDurationFormula(true,leave,ruleData);document.querySelector("#formulaConfigBody .formula-check").click();};});document.querySelectorAll(".test-duration-formula").forEach(function(btn){btn.onclick=function(){openDurationFormula(true,leave,ruleData);document.querySelector("#formulaConfigBody .formula-test").click();};});document.querySelectorAll(".clear-duration-formula").forEach(function(btn){btn.onclick=function(){if(!window.confirm("确定清除统一公式吗？")){return;}ruleData.durationFormula="";ruleData.durationFormulaCheckStatus="未检测";markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);};});}
 function bindEntitlement(key,leave,ruleData){var mode=document.getElementById("entitlementMode"),choices=document.querySelectorAll(".entitlement-choice");if(mode&&choices.length){var previousMode=ruleData.entitlementMode;choices.forEach(function(choice){choice.onclick=function(){var nextMode=choice.dataset.value,dirtyBefore=leaveFormDirty;if(nextMode===previousMode){return;}if(((ruleData.durationRules||[]).length||ruleData.durationFormula)&&!window.confirm("切换控制方式后，当前可休时长配置将被清空。确定继续吗？")){setTimeout(function(){leaveFormDirty=dirtyBefore;},0);return;}mode.value=nextMode;ruleData.entitlementMode=nextMode;ruleData.durationMode="规则表";ruleData.durationRules=[];ruleData.durationFormula="";previousMode=nextMode;choices.forEach(function(item){item.classList.toggle("active",item.dataset.value===nextMode);});markLeaveFormDirty();refreshEntitlementDetail(key,leave,ruleData);};});}bindDurationRuleSummary(key,leave,ruleData);bindQuotaJump();}
 function syncAttachmentRuleRow(row,leave){var basis=row.querySelector(".attachment-basis"),conditional=basis.value!=="所有申请",condition=row.querySelector(".attachment-condition"),allText=row.querySelector(".attachment-all-text"),unit=row.querySelector(".attachment-unit");condition.style.display=conditional?"flex":"none";allText.style.display=conditional?"none":"inline";if(unit){unit.textContent=basis.value==="休假日期跨度"?"自然日":leave.unit;}}
-function renderAttachmentTypeOptions(keyword){var query=String(keyword||"").trim(),container=document.getElementById("attachmentTypeOptions"),items=attachmentTypeLibrary.filter(function(item){return item.state!=="停用"&&arrayValue(item.scenes).indexOf("休假申请")>-1&&(!query||item.code.indexOf(query)>-1||item.name.indexOf(query)>-1||item.note.indexOf(query)>-1);});container.innerHTML=items.length?items.map(function(item){return '<label class="attachment-type-option"><input type="checkbox" value="'+item.name+'"'+(pendingAttachmentTypes.indexOf(item.name)>-1?' checked':'')+'><span><div class="attachment-type-name">'+item.name+' <small>'+item.code+'</small></div><div class="attachment-type-note">'+item.formats.join("、")+'；单文件不超过'+item.maxSize+'MB'+(item.note?'；'+item.note:'')+'</div></span></label>';}).join(""):'<div class="attachment-type-empty" style="padding:20px;text-align:center">未找到可用于休假申请的启用附件类型</div>';container.querySelectorAll('input[type="checkbox"]').forEach(function(input){input.onchange=function(){if(input.checked&&pendingAttachmentTypes.indexOf(input.value)<0){pendingAttachmentTypes.push(input.value);}if(!input.checked){pendingAttachmentTypes=pendingAttachmentTypes.filter(function(item){return item!==input.value;});}};});}
+function renderAttachmentTypeOptions(keyword){var query=String(keyword||"").trim(),container=document.getElementById("attachmentTypeOptions"),items=attachmentTypeLibrary.filter(function(item){return item.state!=="停用"&&arrayValue(item.businesses).indexOf("考勤")>-1&&(!query||item.code.indexOf(query)>-1||item.name.indexOf(query)>-1||(item.nameEn||"").toLowerCase().indexOf(query.toLowerCase())>-1||(item.description||"").indexOf(query)>-1);});container.innerHTML=items.length?items.map(function(item){return '<label class="attachment-type-option"><input type="checkbox" value="'+item.name+'"'+(pendingAttachmentTypes.indexOf(item.name)>-1?' checked':'')+'><span><div class="attachment-type-name">'+item.name+' <small>'+item.code+'</small></div><div class="attachment-type-note">'+arrayValue(item.businesses).join("、")+(item.description?'；'+item.description:'')+'</div></span></label>';}).join(""):'<div class="attachment-type-empty" style="padding:20px;text-align:center">未找到业务包含“考勤”的启用附件类型</div>';container.querySelectorAll('input[type="checkbox"]').forEach(function(input){input.onchange=function(){if(input.checked&&pendingAttachmentTypes.indexOf(input.value)<0){pendingAttachmentTypes.push(input.value);}if(!input.checked){pendingAttachmentTypes=pendingAttachmentTypes.filter(function(item){return item!==input.value;});}};});}
 function openAttachmentTypeSelector(row){activeAttachmentRuleRow=row;pendingAttachmentTypes=arrayValue(row.querySelector(".attachment-material-values").value);var search=document.getElementById("attachmentTypeSearch");search.value="";renderAttachmentTypeOptions("");document.getElementById("attachmentTypeMask").classList.add("show");search.focus();}
 function closeAttachmentTypeSelector(){document.getElementById("attachmentTypeMask").classList.remove("show");activeAttachmentRuleRow=null;pendingAttachmentTypes=[];}
 function applyAttachmentTypeSelection(){if(!activeAttachmentRuleRow){return;}var hidden=activeAttachmentRuleRow.querySelector(".attachment-material-values"),summary=activeAttachmentRuleRow.querySelector(".attachment-type-summary");hidden.value=pendingAttachmentTypes.join("、");summary.innerHTML=attachmentTypeSummaryHtml(pendingAttachmentTypes);markLeaveFormDirty();closeAttachmentTypeSelector();}
 function attachmentTypeReferenceCount(name){var count=0;Object.keys(unifiedRules).forEach(function(key){(unifiedRules[key].attachmentRules||[]).forEach(function(rule){if(arrayValue(rule.materials).indexOf(name)>-1){count+=1;}});});return count;}
-function renderAttachmentManager(){var body=document.getElementById("attachmentManagerRows");if(!body){return;}var keyword=fieldValue("attachmentFilterName","").trim(),scene=fieldValue("attachmentFilterScene","全部"),state=fieldValue("attachmentFilterState","全部"),rows=attachmentTypeLibrary.map(function(item,index){return {item:item,index:index};}).filter(function(row){return (!keyword||row.item.code.indexOf(keyword)>-1||row.item.name.indexOf(keyword)>-1||(row.item.note||"").indexOf(keyword)>-1)&&(scene==="全部"||arrayValue(row.item.scenes).indexOf(scene)>-1)&&(state==="全部"||row.item.state===state);});document.getElementById("attachmentTypeCount").textContent="共 "+rows.length+" 条";document.getElementById("attachmentPaginationTotal").textContent="共 "+rows.length+" 条";body.innerHTML=rows.length?rows.map(function(row){var item=row.item,index=row.index,refs=attachmentTypeReferenceCount(item.name);return '<tr><td>'+escapeRuleHtml(item.code)+'</td><td><b>'+escapeRuleHtml(item.name)+'</b></td><td>'+escapeRuleHtml(arrayValue(item.scenes).join("、"))+'</td><td>'+escapeRuleHtml(arrayValue(item.formats).join("、"))+'</td><td>'+escapeRuleHtml(String(item.maxSize))+'MB</td><td>'+escapeRuleHtml(item.note||"—")+'</td><td><span class="attachment-status'+(item.state==="停用"?' off':'')+'">'+item.state+'</span></td><td>'+escapeRuleHtml(item.createdBy||"—")+'<br><span class="attachment-manager-note">'+escapeRuleHtml(item.createdAt||"—")+'</span></td><td>'+escapeRuleHtml(item.updatedBy||"—")+'<br><span class="attachment-manager-note">'+escapeRuleHtml(item.updatedAt||"—")+'</span></td><td><div class="row-actions"><button type="button" class="btn-text edit-attachment-type" data-index="'+index+'">编辑</button><button type="button" class="btn-text toggle-attachment-type" data-index="'+index+'">'+(item.state==="停用"?"启用":"停用")+'</button><button type="button" class="btn-text delete-attachment-type" data-index="'+index+'"'+(item.state!=="停用"||refs?' disabled title="停用且未被引用时才可删除"':'')+'>删除</button></div></td></tr>';}).join(""):'<tr><td class="table-empty" colspan="10">没有符合条件的附件类型</td></tr>';body.querySelectorAll(".edit-attachment-type").forEach(function(btn){btn.onclick=function(){openAttachmentTypeEditor(Number(btn.dataset.index));};});body.querySelectorAll(".toggle-attachment-type").forEach(function(btn){btn.onclick=function(){var item=attachmentTypeLibrary[Number(btn.dataset.index)],refs=attachmentTypeReferenceCount(item.name);if(item.state==="启用"&&refs&&!window.confirm("该附件类型正被 "+refs+" 条休假规则引用。停用后历史配置保留，但相关假别再次保存或启用前必须替换。确定停用吗？")){return;}item.state=item.state==="停用"?"启用":"停用";item.updatedBy="当前用户";item.updatedAt="2026-07-28 10:00";renderAttachmentManager();showToast("附件类型已"+item.state);};});body.querySelectorAll(".delete-attachment-type:not([disabled])").forEach(function(btn){btn.onclick=function(){var index=Number(btn.dataset.index);if(!window.confirm("删除后不可恢复，确定删除该附件类型吗？")){return;}attachmentTypeLibrary.splice(index,1);renderAttachmentManager();showToast("附件类型已删除");};});}
+function renderAttachmentManager(){var body=document.getElementById("attachmentManagerRows");if(!body){return;}var code=fieldValue("attachmentFilterCode","").trim(),name=fieldValue("attachmentFilterName","").trim(),business=fieldValue("attachmentFilterBusiness","全部"),state=fieldValue("attachmentFilterState","全部"),rows=attachmentTypeLibrary.map(function(item,index){return {item:item,index:index};}).filter(function(row){return (!code||row.item.code.indexOf(code)>-1)&&(!name||row.item.name.indexOf(name)>-1||(row.item.nameEn||"").toLowerCase().indexOf(name.toLowerCase())>-1)&&(business==="全部"||arrayValue(row.item.businesses).indexOf(business)>-1)&&(state==="全部"||row.item.state===state);});document.getElementById("attachmentTypeCount").textContent="共 "+rows.length+" 条";document.getElementById("attachmentPaginationTotal").textContent="共 "+rows.length+" 条";body.innerHTML=rows.length?rows.map(function(row){var item=row.item,index=row.index,refs=attachmentTypeReferenceCount(item.name);return '<tr><td>'+escapeRuleHtml(item.code)+'</td><td><div class="multilingual-name"><b>'+escapeRuleHtml(item.name)+'</b><span class="multilingual-badge" title="支持多语言" aria-label="支持多语言"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c2.4 2.5 3.7 5.5 3.7 9S14.4 18.5 12 21M12 3C9.6 5.5 8.3 8.5 8.3 12s1.3 6.5 3.7 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span></div></td><td>'+escapeRuleHtml(arrayValue(item.businesses).join("、"))+'</td><td>'+escapeRuleHtml(item.description||"—")+'</td><td><span class="attachment-status'+(item.state==="停用"?' off':'')+'">'+item.state+'</span></td><td>'+escapeRuleHtml(item.createdBy||"—")+'</td><td>'+escapeRuleHtml(item.createdAt||"—")+'</td><td>'+escapeRuleHtml(item.updatedBy||"—")+'</td><td>'+escapeRuleHtml(item.updatedAt||"—")+'</td><td><div class="row-actions"><button type="button" class="btn-text edit-attachment-type" data-index="'+index+'">编辑</button><button type="button" class="btn-text toggle-attachment-type" data-index="'+index+'">'+(item.state==="停用"?"启用":"停用")+'</button><button type="button" class="btn-text delete-attachment-type" data-index="'+index+'"'+(item.state!=="停用"||refs?' disabled title="停用且未被引用时才可删除"':'')+'>删除</button></div></td></tr>';}).join(""):'<tr><td class="table-empty" colspan="10">没有符合条件的附件类型</td></tr>';body.querySelectorAll(".edit-attachment-type").forEach(function(btn){btn.onclick=function(){openAttachmentTypeEditor(Number(btn.dataset.index));};});body.querySelectorAll(".toggle-attachment-type").forEach(function(btn){btn.onclick=function(){var item=attachmentTypeLibrary[Number(btn.dataset.index)],refs=attachmentTypeReferenceCount(item.name);if(item.state==="启用"&&refs&&!window.confirm("该附件类型正被 "+refs+" 条休假规则引用。停用后历史配置保留，但相关假别再次保存或启用前必须替换。确定停用吗？")){return;}item.state=item.state==="停用"?"启用":"停用";item.updatedBy="当前用户";item.updatedAt="2026-07-29 10:00";renderAttachmentManager();showToast("附件类型已"+item.state);};});body.querySelectorAll(".delete-attachment-type:not([disabled])").forEach(function(btn){btn.onclick=function(){var index=Number(btn.dataset.index);if(!window.confirm("删除后不可恢复，确定删除该附件类型吗？")){return;}attachmentTypeLibrary.splice(index,1);renderAttachmentManager();showToast("附件类型已删除");};});}
 function openAttachmentManager(){
   if(document.getElementById("planEditView").classList.contains("active")&&planFormDirty&&!window.confirm("当前假期方案尚未保存，离开后本次修改将丢失。是否继续？")){return;}
   editingAttachmentTypeIndex=-1;
   renderAttachmentManager();
   showView("attachments");
 }
-function closeAttachmentManager(){document.getElementById("attachmentManagerMask").classList.remove("show");editingAttachmentTypeIndex=-1;}
+function closeAttachmentManager(){document.getElementById("attachmentManagerMask").classList.remove("show");editingAttachmentTypeIndex=-1;pendingAttachmentTypeNameEn="";}
 function setAttachmentEditorChecks(id,values){var selected=arrayValue(values),group=document.getElementById(id);Array.from(group.querySelectorAll('input[type="checkbox"]')).forEach(function(input){input.checked=selected.indexOf(input.value)>-1;});}
-function openAttachmentTypeEditor(index){editingAttachmentTypeIndex=index;var item=index>=0?attachmentTypeLibrary[index]:{code:"",name:"",note:"",scenes:["休假申请"],formats:["PDF","JPG/JPEG","PNG"],maxSize:20};document.getElementById("attachmentTypeEditorTitle").textContent=index>=0?"编辑附件类型":"新增附件类型";document.getElementById("attachmentTypeCode").value=item.code||"";document.getElementById("attachmentTypeName").value=item.name;document.getElementById("attachmentTypeNote").value=item.note||"";document.getElementById("attachmentTypeMaxSize").value=item.maxSize||20;setAttachmentEditorChecks("attachmentTypeScenes",item.scenes);setAttachmentEditorChecks("attachmentTypeFormats",item.formats);document.getElementById("attachmentManagerMask").classList.add("show");document.getElementById("attachmentTypeName").focus();}
-function saveAttachmentTypeEditor(){var name=fieldValue("attachmentTypeName","").trim(),note=fieldValue("attachmentTypeNote","").trim(),scenes=checkedValues("attachmentTypeScenes"),formats=checkedValues("attachmentTypeFormats"),maxSize=Number(fieldValue("attachmentTypeMaxSize",""));if(!name){showToast("请填写附件类型名称");return;}if(!scenes.length){showToast("请至少选择一个使用场景");return;}if(!formats.length){showToast("请至少选择一种允许上传格式");return;}if(!(maxSize>0)){showToast("单个文件大小上限必须大于0");return;}var duplicate=attachmentTypeLibrary.findIndex(function(item,index){return item.name===name&&index!==editingAttachmentTypeIndex;});if(duplicate>=0){showToast("附件类型名称不能重复");return;}if(editingAttachmentTypeIndex>=0){Object.assign(attachmentTypeLibrary[editingAttachmentTypeIndex],{name:name,note:note,scenes:scenes,formats:formats,maxSize:maxSize,updatedBy:"当前用户",updatedAt:"2026-07-28 10:00"});}else{var nextCode="ATT"+String(attachmentTypeLibrary.length+1).padStart(3,"0");attachmentTypeLibrary.unshift({code:nextCode,name:name,note:note,scenes:scenes,formats:formats,maxSize:maxSize,state:"启用",createdBy:"当前用户",createdAt:"2026-07-28 10:00",updatedBy:"当前用户",updatedAt:"2026-07-28 10:00"});}closeAttachmentManager();renderAttachmentManager();showToast("附件类型已保存");}
+function openAttachmentTypeEditor(index){editingAttachmentTypeIndex=index;var item=index>=0?attachmentTypeLibrary[index]:{code:"",name:"",nameEn:"",description:"",businesses:["考勤"]};pendingAttachmentTypeNameEn=item.nameEn||"";document.getElementById("attachmentTypeEditorTitle").textContent=index>=0?"编辑附件类型":"新增附件类型";document.getElementById("attachmentTypeCode").value=item.code||"";document.getElementById("attachmentTypeName").value=item.name||"";document.getElementById("attachmentTypeDescription").value=item.description||"";setAttachmentEditorChecks("attachmentTypeBusinesses",item.businesses);document.getElementById("attachmentManagerMask").classList.add("show");document.getElementById("attachmentTypeName").focus();}
+function openAttachmentLanguageEditor(){document.getElementById("attachmentNameZhCn").value=fieldValue("attachmentTypeName","");document.getElementById("attachmentNameEnUs").value=pendingAttachmentTypeNameEn;document.getElementById("attachmentLanguageMask").classList.add("show");document.getElementById("attachmentNameZhCn").focus();}
+function closeAttachmentLanguageEditor(){document.getElementById("attachmentLanguageMask").classList.remove("show");}
+function saveAttachmentLanguageEditor(){var name=fieldValue("attachmentNameZhCn","").trim(),nameEn=fieldValue("attachmentNameEnUs","").trim();if(!name){showToast("请填写默认语言名称");return;}document.getElementById("attachmentTypeName").value=name;pendingAttachmentTypeNameEn=nameEn;closeAttachmentLanguageEditor();showToast("多语言名称已更新");}
+function saveAttachmentTypeEditor(){var name=fieldValue("attachmentTypeName","").trim(),nameEn=pendingAttachmentTypeNameEn,description=fieldValue("attachmentTypeDescription","").trim(),businesses=checkedValues("attachmentTypeBusinesses");if(!name){showToast("请填写名称");return;}if(!businesses.length){showToast("请至少选择一项业务");return;}var duplicate=attachmentTypeLibrary.findIndex(function(item,index){return item.name===name&&index!==editingAttachmentTypeIndex;});if(duplicate>=0){showToast("附件类型名称不能重复");return;}if(editingAttachmentTypeIndex>=0){Object.assign(attachmentTypeLibrary[editingAttachmentTypeIndex],{name:name,nameEn:nameEn,description:description,businesses:businesses,updatedBy:"当前用户",updatedAt:"2026-07-29 10:00"});}else{var nextCode="ATT"+String(attachmentTypeLibrary.length+1).padStart(3,"0");attachmentTypeLibrary.unshift({code:nextCode,name:name,nameEn:nameEn,description:description,businesses:businesses,state:"启用",createdBy:"当前用户",createdAt:"2026-07-29 10:00",updatedBy:"当前用户",updatedAt:"2026-07-29 10:00"});}closeAttachmentManager();renderAttachmentManager();showToast("附件类型已保存");}
 function bindAttachmentRules(leave){document.querySelectorAll(".attachment-config-row").forEach(function(row){var basis=row.querySelector(".attachment-basis");basis.onchange=function(){syncAttachmentRuleRow(row,leave);};syncAttachmentRuleRow(row,leave);var select=row.querySelector(".select-attachment-types");if(select){select.onclick=function(){openAttachmentTypeSelector(row);};}});document.querySelectorAll(".remove-attachment-rule").forEach(function(btn){btn.onclick=function(){var row=btn.closest(".attachment-config-row"),body=row.parentElement,container=document.getElementById("attachmentRuleBody");row.remove();markLeaveFormDirty();if(container&&!body.querySelector(".attachment-config-row")){container.innerHTML=attachmentRulesContentHtml([],leave);}bindAttachmentRules(leave);};});var add=document.querySelector(".add-attachment-rule");if(add){add.onclick=function(){var container=document.getElementById("attachmentRuleBody"),body=document.getElementById("attachmentRuleRows");if(!container){return;}if(!body){container.innerHTML=attachmentRulesContentHtml([{basis:"所有申请",operator:"大于",value:"",materials:[],requirement:"全部提供"}],leave);}else{body.insertAdjacentHTML("beforeend",attachmentRuleRowHtml(null,leave));}markLeaveFormDirty();bindAttachmentRules(leave);};}}
 function collectAttachmentRules(){return Array.from(document.querySelectorAll(".attachment-config-row")).map(function(row){var basis=row.querySelector(".attachment-basis").value,materials=arrayValue(row.querySelector(".attachment-material-values").value);return {basis:basis,operator:basis==="所有申请"?"":row.querySelector(".attachment-operator").value,value:basis==="所有申请"?"":row.querySelector(".attachment-value").value,materials:materials,requirement:row.querySelector(".attachment-requirement").value};});}
 function hasUnitDependentAttachmentValue(){return Array.from(document.querySelectorAll(".attachment-config-row")).some(function(row){var basis=row.querySelector(".attachment-basis"),value=row.querySelector(".attachment-value");return basis&&basis.value==="本次申请时长"&&value&&String(value.value||"").trim();});}
@@ -1263,31 +1277,38 @@ function bindUnifiedForm(key,leave,ruleData){
   document.querySelectorAll(".outline-link").forEach(function(btn){btn.onclick=function(){document.querySelectorAll(".outline-link").forEach(function(x){x.classList.remove("active");});btn.classList.add("active");document.getElementById("leaveSection"+btn.dataset.section).scrollIntoView({block:"start"});};});
   document.querySelectorAll(".module-toggle,.inline-rule-toggle").forEach(function(btn){btn.onclick=function(){var on=btn.classList.toggle("on");btn.setAttribute("aria-pressed",String(on));document.getElementById(btn.dataset.target).style.display=on?"block":"none";markLeaveFormDirty();};});
   var unit=document.getElementById("leaveUnit");
-  if(unit){var previousUnit=leave.unit;unit.onchange=function(){
-    var nextUnit=this.value,dirtyBefore=leaveFormDirty;
-    var hasDurationConfig=(ruleData.durationRules||[]).length||String(ruleData.durationFormula||"").trim(),hasAttachmentThreshold=hasUnitDependentAttachmentValue();
-    if(nextUnit!==previousUnit&&(hasDurationConfig||hasAttachmentThreshold)&&!window.confirm("修改计量单位后，可休时长规则、周期上限及按申请时长设置的附件阈值，需要按新单位重新填写。系统不会自动换算；单次最小/最大时长和日最大时长仍按小时保留。是否继续？")){this.value=previousUnit;setTimeout(function(){leaveFormDirty=dirtyBefore;},0);return;}
-    if(nextUnit!==previousUnit){ruleData.durationRules=[];ruleData.durationFormula="";ruleData.durationFormulaCheckStatus="未检测";clearUnitDependentAttachmentValues(ruleData);}
-    var isHour=this.value==="小时",hourFields=document.getElementById("hourCalculationFields");
+  if(unit){var previousUnit=leave.unit;
+  function syncUnitPresentation(){
+    var isHour=unit.value==="小时",hourFields=document.getElementById("hourCalculationFields");
     if(hourFields){hourFields.style.display=isHour?"":"none";}
-    leave.unit=this.value;
-    previousUnit=leave.unit;
     ["leaveMin","leaveMax"].forEach(function(id){
       var input=document.getElementById(id),field=input&&input.closest(".business-field"),suffix=input&&input.closest(".input-with-suffix")&&input.closest(".input-with-suffix").querySelector(".input-suffix");
       if(suffix){suffix.textContent="小时";}
       if(field){
-        var tip=leave.unit==="天"?"按天假别仍固定按小时配置，用于自由班次没有有效工作时长时的申请与扣减兜底。":"用于校验一张休假单允许提交的休假小时数。",required=id==="leaveMin"?'<span class="required">*</span>':"";
-        field.querySelector(".form-label").innerHTML=required+(id==="leaveMin"?"单次最小时长":"单次最大时长")+' <span class="hint" data-tip="'+tip+'">?</span>';
+        var tip=isHour?"用于校验一张休假单允许提交的休假小时数。":"员工按天选择日期；本字段仍按小时校验整张申请单汇总后的休假工时，并为自由班次提供工时边界。",required=id==="leaveMin"?'<span class="required">*</span>':"",badge=isHour?"":'<span class="field-unit-badge">工时边界</span>';
+        field.querySelector(".form-label").innerHTML=required+(id==="leaveMin"?"单次最小时长":"单次最大时长")+badge+' <span class="hint" data-tip="'+tip+'">?</span>';
       }
     });
     var dayMax=document.getElementById("dayMax"),dayField=dayMax&&dayMax.closest(".business-field");
-    if(dayField){var dailyTip=isHour?'同一天最多计入的休假小时数；每日试算结果不得超过该上限。':'按天申请时每个可计入日计1天；生成考勤小时时，固定班次不超过班次工作时长，自由班次没有有效工作时长时使用该上限。';dayField.querySelector(".form-label").innerHTML='<span class="required">*</span>日最大时长 <span class="hint" data-tip="'+dailyTip+'">?</span>';}
+    if(dayField){var dailyTip=isHour?'同一天最多计入的休假小时数；每日试算结果不得超过该上限。':'员工按天选择日期；固定班次取班次应出勤时长与本值的较小值，自由班次无固定时长时使用本值。';dayField.querySelector(".form-label").innerHTML='<span class="required">*</span>日最大时长 <span class="hint" data-tip="'+dailyTip+'">?</span>';}
+    var summary=document.getElementById("unitLinkageSummary");
+    if(summary){summary.textContent=isHour?"员工按小时申请；单次最小/最大时长及日最大时长均按小时校验。":"员工按天选择休假日期；单次最小/最大时长及日最大时长仍按小时校验休假工时。";}
+  }
+  unit.onchange=function(){
+    var nextUnit=this.value,dirtyBefore=leaveFormDirty;
+    var hasDurationConfig=(ruleData.durationRules||[]).length||String(ruleData.durationFormula||"").trim(),hasAttachmentThreshold=hasUnitDependentAttachmentValue();
+    if(nextUnit!==previousUnit&&(hasDurationConfig||hasAttachmentThreshold)&&!window.confirm("修改计量单位后，可休时长规则、周期上限及按申请时长设置的附件阈值，需要按新单位重新填写。系统不会自动换算；单次最小/最大时长和日最大时长仍按小时保留。是否继续？")){this.value=previousUnit;setTimeout(function(){leaveFormDirty=dirtyBefore;},0);return;}
+    if(nextUnit!==previousUnit){ruleData.durationRules=[];ruleData.durationFormula="";ruleData.durationFormulaCheckStatus="未检测";clearUnitDependentAttachmentValues(ruleData);}
+    leave.unit=this.value;
+    previousUnit=leave.unit;
+    syncUnitPresentation();
     refreshEntitlementDetail(key,leave,ruleData);
     document.querySelectorAll(".attachment-config-row").forEach(function(row){syncAttachmentRuleRow(row,leave);});
     var intervalSelect=document.getElementById("intervalUnit");
     if(intervalSelect){var units=intervalUnitOptions(leave.unit),current=units.indexOf(intervalSelect.value)>-1?intervalSelect.value:"自然日";intervalSelect.innerHTML=optionListHtml(units,current);}
     markLeaveFormDirty();
-  };}
+  };
+  syncUnitPresentation();}
   var pre=document.getElementById("preposHolidayGroup"),strong=document.getElementById("unifiedStrongControl");
   if(pre&&strong){var controlRow=document.getElementById("preleaveControlRow"),sync=function(){var disabled=checkedValues("preposHolidayGroup").length===0;strong.disabled=disabled;if(controlRow){controlRow.classList.toggle("is-disabled",disabled);}};pre.querySelectorAll("input").forEach(function(x){x.onchange=sync;});sync();}
   bindEntitlement(key,leave,ruleData);bindConditionRows();bindDateRules();bindAttachmentRules(leave);bindConfigMode();bindFormulaEditors();bindQualificationFormulaActions();bindSimpleRemoveActions();
@@ -1322,7 +1343,7 @@ function clearLeaveFormErrors(){document.querySelectorAll("#leaveFormBody .input
 function requireLeaveField(id,message){var el=document.getElementById(id);if(!el||!String(el.value||"").trim()||el.value==="请选择"){if(el){el.classList.add("input-error");}return message;}return "";}
 function validateLeaveForm(ruleData){
   clearLeaveFormErrors();
-  var checks=[["leaveTypeSelect","请选择休假类型"],["leaveUnit","请选择计量单位"],["paidSettingUnified","请选择是否带薪"],["leaveMin","请填写单次最小时长"],["calcType","请选择时长计算方式"],["dayMax","请填写单日休假折算上限"],["entitlementMode","请选择员工可休总量控制方式"]];
+  var checks=[["leaveTypeSelect","请选择休假类型"],["leaveUnit","请选择计量单位"],["paidSettingUnified","请选择是否带薪"],["leaveMin","请填写单次最小时长"],["calcType","请选择时长计算方式"],["dayMax","请填写日最大时长"],["entitlementMode","请选择员工可休总量控制方式"]];
   if(fieldValue("leaveUnit","小时")==="小时"){checks.push(["roundingBase","请填写舍位基数"],["roundingType","请选择舍位方式"]);}
   for(var i=0;i<checks.length;i++){var message=requireLeaveField(checks[i][0],checks[i][1]);if(message){return message;}}
   var leaveUnit=fieldValue("leaveUnit","小时"),leaveMin=Number(fieldValue("leaveMin","")),leaveMaxText=fieldValue("leaveMax",""),leaveMax=leaveMaxText===""?null:Number(leaveMaxText);
@@ -1333,7 +1354,7 @@ function validateLeaveForm(ruleData){
   if(moduleEnabled("applicationConditionBody")){var mode=selectedConfigMode("conditionMode","常规条件");if(mode==="公式配置"&&!String((activeLeaveRuleDraft&&activeLeaveRuleDraft.conditionFormula)||"").trim()){return "请配置申请资格公式";}if(mode!=="公式配置"&&!collectConditionSet(document.querySelector(".eligibility-condition-list")).length){return "请完整填写申请资格条件";}}
   if(moduleEnabled("leaveDateRuleBody")){var dateRows=Array.from(document.querySelectorAll(".date-rule-row"));if(!dateRows.length){return "请至少添加一条休假日期范围规则";}if(dateRows.some(function(row){return row.querySelector(".date-target").value==="请选择"||row.querySelector(".date-relation").value==="请选择"||row.querySelector(".date-reference").value==="请选择"||!String(row.querySelector(".date-offset").value||"").trim();})){return "请完整填写休假日期范围规则";}}
   if(moduleEnabled("intervalRuleBody")){var intervalMessage=requireLeaveField("intervalValue","请填写两次同类休假的最小间隔");if(intervalMessage){return intervalMessage;}intervalMessage=requireLeaveField("intervalUnit","请选择间隔单位");if(intervalMessage){return intervalMessage;}}
-  if(moduleEnabled("attachmentRuleBody")){var attachmentRows=Array.from(document.querySelectorAll(".attachment-config-row"));if(!attachmentRows.length){return "请至少添加一条附件规则";}for(var j=0;j<attachmentRows.length;j++){var row=attachmentRows[j],basis=row.querySelector(".attachment-basis").value,value=Number(row.querySelector(".attachment-value").value||0),materials=arrayValue(row.querySelector(".attachment-material-values").value);if(basis!=="所有申请"&&!(value>0)){row.querySelector(".attachment-value").classList.add("input-error");return "附件规则的判断数值必须大于0";}if(!materials.length){return "请为每条附件规则至少选择一种附件类型";}var unavailable=materials.find(function(name){var type=attachmentTypeLibrary.find(function(item){return item.name===name;});return !type||type.state!=="启用"||arrayValue(type.scenes).indexOf("休假申请")<0;});if(unavailable){return "附件类型“"+unavailable+"”已停用或不适用于休假申请，请替换后再保存";}}}
+  if(moduleEnabled("attachmentRuleBody")){var attachmentRows=Array.from(document.querySelectorAll(".attachment-config-row"));if(!attachmentRows.length){return "请至少添加一条附件规则";}for(var j=0;j<attachmentRows.length;j++){var row=attachmentRows[j],basis=row.querySelector(".attachment-basis").value,value=Number(row.querySelector(".attachment-value").value||0),materials=arrayValue(row.querySelector(".attachment-material-values").value);if(basis!=="所有申请"&&!(value>0)){row.querySelector(".attachment-value").classList.add("input-error");return "附件规则的判断数值必须大于0";}if(!materials.length){return "请为每条附件规则至少选择一种附件类型";}var unavailable=materials.find(function(name){var type=attachmentTypeLibrary.find(function(item){return item.name===name;});return !type||type.state!=="启用"||arrayValue(type.businesses).indexOf("考勤")<0;});if(unavailable){return "附件类型“"+unavailable+"”已停用或业务不包含考勤，请替换后再保存";}}}
   if(moduleEnabled("unifiedPolicyBody")&&!String(fieldValue("unifiedPolicyNotice","")).trim()){return "请填写员工申请时展示的政策说明";}return "";
 }
 
@@ -1359,10 +1380,15 @@ document.getElementById("attachmentTypesMenu").onclick=openAttachmentManager;
 document.getElementById("addAttachmentType").onclick=function(){openAttachmentTypeEditor(-1);};
 document.getElementById("cancelAttachmentTypeEdit").onclick=closeAttachmentManager;
 document.getElementById("saveAttachmentTypeEdit").onclick=saveAttachmentTypeEditor;
+document.getElementById("attachmentNameLanguageButton").onclick=openAttachmentLanguageEditor;
+document.getElementById("closeAttachmentLanguage").onclick=closeAttachmentLanguageEditor;
+document.getElementById("cancelAttachmentLanguage").onclick=closeAttachmentLanguageEditor;
+document.getElementById("saveAttachmentLanguage").onclick=saveAttachmentLanguageEditor;
+document.getElementById("attachmentLanguageMask").onclick=function(e){if(e.target===this){closeAttachmentLanguageEditor();}};
 document.getElementById("queryAttachmentTypes").onclick=renderAttachmentManager;
-document.getElementById("resetAttachmentFilter").onclick=function(){document.getElementById("attachmentFilterName").value="";document.getElementById("attachmentFilterScene").value="全部";document.getElementById("attachmentFilterState").value="全部";renderAttachmentManager();};
+document.getElementById("resetAttachmentFilter").onclick=function(){document.getElementById("attachmentFilterCode").value="";document.getElementById("attachmentFilterName").value="";document.getElementById("attachmentFilterBusiness").value="全部";document.getElementById("attachmentFilterState").value="全部";renderAttachmentManager();};
 document.getElementById("exportAttachmentTypes").onclick=function(){showToast("已按当前查询结果导出附件类型");};
-document.getElementById("exportAttachmentTypeSettings").onclick=function(){showToast("导出字段：附件类型、员工端说明、状态、更新人、更新时间");};
+document.getElementById("exportAttachmentTypeSettings").onclick=function(){showToast("导出字段：编码、名称、业务、描述、适用状态及创建修改信息");};
 document.getElementById("addLeave").onclick=function(){openLeaveForm("");};
 document.getElementById("confirmAdd").onclick=function(){var message=validateLeaveForm(activeLeaveRuleDraft||defaultRule());if(message){showToast(message);return;}var name=fieldValue("leaveTypeSelect",""),isEdit=!!editingLeaveKey,key=isEdit?editingLeaveKey:"custom"+Date.now(),leave=isEdit?leaves.find(function(x){return x.key===key;}):{key:key,name:name,state:"启用",prerequisite:"无",strong:"—"};var prerequisites=checkedValues("preposHolidayGroup"),strong=document.getElementById("unifiedStrongControl");leave.name=name;leave.unit=fieldValue("leaveUnit","小时");leave.min=fieldValue("leaveMin","");leave.max=fieldValue("leaveMax","");leave.calc=fieldValue("calcType","考勤日");leave.daily=fieldValue("dayMax","8");leave.paid=fieldValue("paidSettingUnified","是");leave.prerequisite=prerequisites.length?prerequisites.join("、"):"无";leave.strong=prerequisites.length?(strong&&strong.checked?"是":"否"):"—";leave.roundBase=leave.unit==="天"?"—":fieldValue("roundingBase","0.5");leave.round=leave.unit==="天"?"—":fieldValue("roundingType","向上取整");unifiedRules[key]=collectUnifiedRule(activeLeaveRuleDraft||defaultRule(),leave);(unifiedRules[key].durationRules||[]).forEach(function(item){item.unit=leave.unit;});if(!isEdit){leaves.push(leave);}renderLeaves();leaveFormDirty=false;planFormDirty=true;closeLeaveForm(true);showToast(isEdit?"休假类型配置已保存":"休假类型已新增");};
 document.getElementById("saveDurationRule").onclick=function(){if(!activeDurationRuleEditor){return;}var ctx=activeDurationRuleEditor,edited=collectEditedDurationRule(),message=validateEditedDurationRule(edited);if(message){showToast(message);return;}var isEdit=ctx.index>=0;if(isEdit){ctx.ruleData.durationRules[ctx.index]=edited;}else{ctx.ruleData.durationRules.push(edited);}normalizeDurationRuleOrder(ctx.ruleData.durationRules);var key=ctx.key,leave=ctx.leave,ruleData=ctx.ruleData;markLeaveFormDirty();closeDurationRuleEditor(true);refreshEntitlementDetail(key,leave,ruleData);showToast(ruleScopeType(edited)==="all"?"“其他情况（兜底）”已固定在规则列表最后":(isEdit?"条件规则修改已保存":"条件规则已添加"));};
