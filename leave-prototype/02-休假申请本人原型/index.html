@@ -41,7 +41,7 @@
 <div class="layout">
     <aside class="sidebar">
       <div class="sidebar-logo">HR One</div>
-      <div id="sideNav"><a class="sidebar-home" href="#">首页</a><div class="sidebar-parent">我的假勤</div><a class="sidebar-item active" href="../03-我的休假列表与变更销假原型/index.html">我的休假</a><div class="sidebar-parent">我的团队</div><a class="sidebar-item" href="../04-团队与HR发起原型/index.html?mode=team">团队休假</a><div class="sidebar-parent">假勤流程</div><a class="sidebar-item" href="../04-团队与HR发起原型/index.html?mode=hr">休假</a></div>
+      <div id="sideNav"><a class="sidebar-home" href="../03-我的休假列表与变更销假原型/index.html">首页</a><div class="sidebar-parent">我的假勤</div><a class="sidebar-item active" href="../03-我的休假列表与变更销假原型/index.html">我的休假</a><div class="sidebar-parent">我的团队</div><a class="sidebar-item" href="../04-团队与HR发起原型/index.html?mode=team">团队休假</a><div class="sidebar-parent">假勤流程</div><a class="sidebar-item" href="../04-团队与HR发起原型/index.html?mode=hr">休假</a></div>
     </aside>
     <main class="main">
     <header class="header"><div class="breadcrumb" id="breadcrumb">员工自助 / 休假 / <span>新增休假</span></div><div class="user-info" id="userInfo">GMT+8:00　简体中文　当前员工</div></header>
@@ -168,7 +168,7 @@ function openDateTimePicker(targetId){const input=$(targetId),trigger=$(`${targe
 function confirmDateTimePicker(){if(!state.pickerTarget||!state.pickerDate)return;const input=$(state.pickerTarget);input.value=state.dateRequest?state.pickerDate:`${state.pickerDate}T${state.pickerHour}:${state.pickerMinute}`;syncDateTimeTriggers();closeDateTimePicker();input.dispatchEvent(new Event('change',{bubbles:true}))}
 function configureEntryMode(){
   const selfActive=entryMode==='self',teamActive=entryMode==='team',hrActive=entryMode==='hr';
-  $('sideNav').innerHTML=`<a class="sidebar-home" href="#">首页</a><div class="sidebar-parent">我的假勤</div><a class="sidebar-item${selfActive?' active':''}" href="../03-我的休假列表与变更销假原型/index.html">我的休假</a><div class="sidebar-parent">我的团队</div><a class="sidebar-item${teamActive?' active':''}" href="../04-团队与HR发起原型/index.html?mode=team">团队休假</a><div class="sidebar-parent">假勤流程</div><a class="sidebar-item${hrActive?' active':''}" href="../04-团队与HR发起原型/index.html?mode=hr">休假</a>`;
+  $('sideNav').innerHTML=`<a class="sidebar-home" href="../03-我的休假列表与变更销假原型/index.html">首页</a><div class="sidebar-parent">我的假勤</div><a class="sidebar-item${selfActive?' active':''}" href="../03-我的休假列表与变更销假原型/index.html">我的休假</a><div class="sidebar-parent">我的团队</div><a class="sidebar-item${teamActive?' active':''}" href="../04-团队与HR发起原型/index.html?mode=team">团队休假</a><div class="sidebar-parent">假勤流程</div><a class="sidebar-item${hrActive?' active':''}" href="../04-团队与HR发起原型/index.html?mode=hr">休假</a>`;
   if(entryMode==='self')return;
   document.body.classList.add('mode-delegate');
   const isTeam=entryMode==='team';
