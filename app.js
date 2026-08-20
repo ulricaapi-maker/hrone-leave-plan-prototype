@@ -679,7 +679,7 @@ function compOehrPageHtml(){return `
     <button class="annual-step" data-quota-step="settle"><span class="annual-step-no">3</span>调休结算规则</button>
   </div>
 
-  <div id="compConfigBody">
+  <div id="compConfigBody" data-quota-config-body>
     <div class="quota-step-pane active" data-quota-pane="grant">
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">额度生成规则 <span class="hint" data-tip="只有加班补偿方式为“调休假”时，才按这里的来源设置生成调休额度。">?</span></div><div class="annual-config-desc">设置各类加班是否转换为调休额度及转换比例。</div></div>
@@ -776,17 +776,19 @@ function compOehrPageHtml(){return `
 </div>`;}
 
 function toggleCompSection(button,target){if(!button||!target){return;}var on=button.classList.toggle("on");button.setAttribute("aria-pressed",String(on));target.hidden=!on;}
-function bindQuotaConfigTabs(){
-  document.querySelectorAll(".annual-step[data-quota-step]").forEach(function(step){
+function bindQuotaConfigTabs(panel){
+  var framework=panel&&panel.querySelector(".annual-framework");
+  if(!framework){return;}
+  framework.querySelectorAll(".annual-step[data-quota-step]").forEach(function(step){
     step.onclick=function(){
       var key=step.dataset.quotaStep;
-      document.querySelectorAll(".annual-step[data-quota-step]").forEach(function(item){item.classList.toggle("active",item===step);});
-      document.querySelectorAll(".quota-step-pane").forEach(function(pane){pane.classList.toggle("active",pane.dataset.quotaPane===key);});
+      framework.querySelectorAll(".annual-step[data-quota-step]").forEach(function(item){item.classList.toggle("active",item===step);});
+      framework.querySelectorAll(".quota-step-pane").forEach(function(pane){pane.classList.toggle("active",pane.dataset.quotaPane===key);});
     };
   });
 }
-function bindCompConfigPage(){
-  bindQuotaConfigTabs();
+function bindCompConfigPage(panel){
+  bindQuotaConfigTabs(panel);
   var sourceHelp=document.getElementById("compSourceRuleHelp");if(sourceHelp){var openSourceHelp=function(){openAnnualHelpDrawer("加班补偿方式与调休额度的关系",compSourceRuleHelpHtml());};sourceHelp.onclick=openSourceHelp;sourceHelp.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openSourceHelp();}};}
   document.querySelectorAll('input[name="compExpiryType"]').forEach(function(radio){radio.onchange=function(){document.querySelectorAll(".comp-radio-row").forEach(function(row){var active=row.contains(radio);if(active){row.classList.add("active");}else{row.classList.remove("active");}row.querySelectorAll("input:not([type=radio]),select").forEach(function(control){control.disabled=!active;});});};});
   var delay=document.getElementById("compAutoDelay"),delayFields=document.getElementById("compDelayFields");
@@ -973,7 +975,7 @@ function sickQuotaPageHtml(){return `
     <button class="annual-step" data-quota-step="validity"><span class="annual-step-no">2</span>病假有效期规则</button>
     <button class="annual-step" data-quota-step="settle"><span class="annual-step-no">3</span>病假结算规则</button>
   </div>
-  <div id="sickQuotaBody">
+  <div id="sickQuotaBody" data-quota-config-body>
     <div class="quota-step-pane active" data-quota-pane="grant">
     <section class="annual-config-section">
       <div class="annual-config-head"><div class="annual-config-title">额度生成规则</div><div class="annual-config-desc">设置病假额度采用固定值、考勤结果、公式还是导入方式生成。</div></div>
@@ -1029,15 +1031,15 @@ function sickQuotaPageHtml(){return `
     </div>
   </div>
 </div>`;}
-function bindSickConfigPage(){bindQuotaConfigTabs();function updateSickResult(groupName,value){var grant=document.getElementById("sickGrantResult"),validity=document.getElementById("sickValidityResult"),leaving=document.getElementById("sickLeavingResult");if(groupName==="sickCalculation"&&grant){var text={fixed:"每名符合条件的员工生成80小时病假额度",attendance:"病假额度按所选考勤项目统计结果折算",formula:"病假额度按已配置公式计算",import:"病假额度通过导入结果维护"}[value];grant.innerHTML="<b>当前结果：</b>"+text+"；申请时优先使用较早失效的余额。";}if(groupName==="sickValidity"&&validity){var validityText={fixed:"本年度生成的病假额度于当年12月31日后失效。",entry:"每笔病假额度于次年对应入职日期后失效。",cap:"病假余额最多累计160小时，超出部分按规则处理。",forever:"病假额度长期有效，不设置失效日期。"}[value];validity.innerHTML="<b>当前结果：</b>"+validityText;}if(groupName==="sickLeaving"&&leaving){leaving.innerHTML=value==="prorate"?"<b>当前结果：</b>员工离职时，剩余病假额度按入职天数折算。":"<b>当前结果：</b>员工离职时，未使用的病假余额清零。";}}
+function bindSickConfigPage(panel){bindQuotaConfigTabs(panel);function updateSickResult(groupName,value){var grant=document.getElementById("sickGrantResult"),validity=document.getElementById("sickValidityResult"),leaving=document.getElementById("sickLeavingResult");if(groupName==="sickCalculation"&&grant){var text={fixed:"每名符合条件的员工生成80小时病假额度",attendance:"病假额度按所选考勤项目统计结果折算",formula:"病假额度按已配置公式计算",import:"病假额度通过导入结果维护"}[value];grant.innerHTML="<b>当前结果：</b>"+text+"；申请时优先使用较早失效的余额。";}if(groupName==="sickValidity"&&validity){var validityText={fixed:"本年度生成的病假额度于当年12月31日后失效。",entry:"每笔病假额度于次年对应入职日期后失效。",cap:"病假余额最多累计160小时，超出部分按规则处理。",forever:"病假额度长期有效，不设置失效日期。"}[value];validity.innerHTML="<b>当前结果：</b>"+validityText;}if(groupName==="sickLeaving"&&leaving){leaving.innerHTML=value==="prorate"?"<b>当前结果：</b>员工离职时，剩余病假额度按入职天数折算。":"<b>当前结果：</b>员工离职时，未使用的病假余额清零。";}}
   function bindOptions(groupName,panelAttribute){document.querySelectorAll('input[name="'+groupName+'"]').forEach(function(input){input.onchange=function(){document.querySelectorAll('input[name="'+groupName+'"]').forEach(function(x){x.closest(".sick-option").classList.toggle("active",x.checked);});document.querySelectorAll("["+panelAttribute+"]").forEach(function(panel){panel.style.display=panel.getAttribute(panelAttribute)===input.value?"block":"none";});updateSickResult(groupName,input.value);};});}bindOptions("sickCalculation","data-sick-calculation-panel");bindOptions("sickValidity","data-sick-validity-panel");document.querySelectorAll('input[name="sickLeaving"]').forEach(function(input){input.onchange=function(){document.querySelectorAll('input[name="sickLeaving"]').forEach(function(x){x.closest(".sick-option").classList.toggle("active",x.checked);});updateSickResult("sickLeaving",input.value);};});}
 function quotaConfigControlHtml(key,label){var enabled=quotaConfigEnabled[key]!==false;return '<div class="quota-page-control"><div class="quota-page-control-label"><button type="button" class="switch-toggle'+(enabled?' on':'')+'" id="'+key+'ConfigEnabled" aria-pressed="'+enabled+'"></button><span>启用'+label+'</span></div></div>';}
-function bindQuotaConfigControl(panel,key,label){var toggle=document.getElementById(key+"ConfigEnabled"),content=panel.querySelector(".annual-framework");if(!toggle||!content){return;}content.classList.add("quota-config-content");function sync(){var enabled=quotaConfigEnabled[key]!==false;toggle.classList.toggle("on",enabled);toggle.setAttribute("aria-pressed",String(enabled));content.classList.toggle("config-disabled",!enabled);}toggle.onclick=function(){quotaConfigEnabled[key]=!(quotaConfigEnabled[key]!==false);sync();planFormDirty=true;showToast(label+(quotaConfigEnabled[key]?"已启用":"已停用"));};sync();}
+function bindQuotaConfigControl(panel,key,label){var toggle=document.getElementById(key+"ConfigEnabled"),content=panel.querySelector("[data-quota-config-body]");if(!toggle||!content){return;}content.classList.add("quota-config-content");function sync(){var enabled=quotaConfigEnabled[key]!==false;toggle.classList.toggle("on",enabled);toggle.setAttribute("aria-pressed",String(enabled));content.classList.toggle("config-disabled",!enabled);}toggle.onclick=function(){quotaConfigEnabled[key]=!(quotaConfigEnabled[key]!==false);sync();planFormDirty=true;showToast(label+(quotaConfigEnabled[key]?"已启用":"已停用"));};sync();}
 function renderBoundary(key){
   var d=boundary[key],panel=document.getElementById("panel-"+key);
   if(key==="annual"){panel.innerHTML=annualOehrPageHtmlV2();bindAnnualConfigPage();bindConditionRows();return;}
-  if(key==="comp"){panel.innerHTML=quotaConfigControlHtml(key,"调休假配置")+compOehrPageHtml();bindQuotaConfigControl(panel,key,"调休假配置");bindCompConfigPage();return;}
-  if(key==="sick"){panel.innerHTML=quotaConfigControlHtml(key,"病假配置")+sickQuotaPageHtml();bindQuotaConfigControl(panel,key,"病假配置");bindSickConfigPage();return;}
+  if(key==="comp"){panel.innerHTML=quotaConfigControlHtml(key,"调休假配置")+compOehrPageHtml();bindQuotaConfigControl(panel,key,"调休假配置");bindCompConfigPage(panel);return;}
+  if(key==="sick"){panel.innerHTML=quotaConfigControlHtml(key,"病假配置")+sickQuotaPageHtml();bindQuotaConfigControl(panel,key,"病假配置");bindSickConfigPage(panel);return;}
   panel.innerHTML='<div class="empty-boundary"><div class="boundary-box"><div class="boundary-title">'+d.title+'</div><div class="boundary-text">'+d.text+'</div><div class="chips">'+d.chips.map(function(x){return '<span class="chip">'+x+'</span>';}).join("")+'</div></div></div>';
 }
 function switchTab(key){document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("active",x.dataset.tab===key);});document.querySelectorAll(".tab-panel").forEach(function(x){x.classList.toggle("active",x.id==="panel-"+key);});}
