@@ -275,6 +275,14 @@ async function overflowingHeaders(page, panelId) {
       return { wrapRight: wrap.right, totalRight: total.right };
     });
     assert.ok(teamSummaryVisibility.totalRight <= teamSummaryVisibility.wrapRight + 1, "团队汇总首屏应直接看到总可休额度");
+    await page.setViewportSize({ width: 2786, height: 850 });
+    const teamSummaryWideFill = await page.locator('#team-balance-summary').evaluate((panel) => {
+      const wrap = panel.querySelector('.table-wrap').getBoundingClientRect();
+      const table = panel.querySelector('table').getBoundingClientRect();
+      return { wrapRight: wrap.right, tableRight: table.right };
+    });
+    assert.ok(Math.abs(teamSummaryWideFill.wrapRight - teamSummaryWideFill.tableRight) < 1, "团队汇总在宽屏下应铺满表格容器");
+    await page.setViewportSize({ width: 1050, height: 850 });
     assert.equal(
       await page.locator('#team-balance-summary [data-query-key="area"] option').nth(1).textContent(),
       "FBU-美东区",

@@ -433,7 +433,7 @@
 
 /* 团队汇总首屏保留员工识别信息和总可休额度。 */
 #team-balance-summary table {
-  width: 1000px;
+  width: 100%;
   min-width: 1000px;
   table-layout: fixed;
 }
