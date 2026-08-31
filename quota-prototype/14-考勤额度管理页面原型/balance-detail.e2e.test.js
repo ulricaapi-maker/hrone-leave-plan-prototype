@@ -49,6 +49,14 @@ async function visibleToolbarButtonGaps(page, pageId) {
   });
 }
 
+async function overflowingHeaders(page, panelId) {
+  return page.locator(`#${panelId} thead th`).evaluateAll((headers) =>
+    headers
+      .filter((header) => header.scrollWidth > header.clientWidth)
+      .map((header) => header.textContent.trim())
+  );
+}
+
 (async function () {
   const browser = await chromium.launch({ headless: true, executablePath: chromePath });
   const page = await browser.newPage({ viewport: { width: 1400, height: 850 } });
@@ -143,6 +151,16 @@ async function visibleToolbarButtonGaps(page, pageId) {
     await page.locator("#dialogCancel").click();
     await sickRow.locator('input[type="checkbox"]').uncheck();
 
+    await page.locator('#balance-detail .toolbar-trigger', { hasText: '计算额度' }).click();
+    await page.locator('#balance-detail .calculate-action[data-calc-kind="annual"]').click();
+    const calculateAreaField = page.locator('#dialogBody .dialog-row').filter({ has: page.locator('label', { hasText: '划分区域' }) });
+    assert.equal(
+      await calculateAreaField.locator('option').nth(1).textContent(),
+      "FBU-美东区",
+      "计算额度弹窗的划分区域案例也应使用 FBU-美东区"
+    );
+    await page.locator('#dialogCancel').click();
+
     await page.locator('.balance-tab[data-balance-tab="usage"]').click();
     const usage = page.locator("#balance-usage");
     assert.equal(await usage.locator("thead th").nth(8).textContent(), "已休额度（h）");
@@ -228,6 +246,7 @@ async function visibleToolbarButtonGaps(page, pageId) {
     assert.equal(await teamMenu.textContent(), "团队假期余额", "团队假期下应新增团队假期余额入口");
     assert.equal(await selfMenu.textContent(), "我的假期余额", "我的假勤下应新增我的假期余额入口");
 
+    await page.setViewportSize({ width: 1050, height: 850 });
     await teamMenu.click();
     assert.equal(await page.locator(".breadcrumb").innerText(), "考勤管理 / 团队假期 / 团队假期余额");
     assert.deepEqual(
@@ -249,6 +268,18 @@ async function visibleToolbarButtonGaps(page, pageId) {
       ["序号", "员工", "工号", "部门", "人员状态", "总可休额度（h）", "年假可休额度（h）", "病假可休额度（h）", "调休假可休额度（h）"],
       "团队汇总应展示总可休额度和三类可休额度"
     );
+    const teamSummaryVisibility = await page.locator('#team-balance-summary').evaluate((panel) => {
+      const wrap = panel.querySelector('.table-wrap').getBoundingClientRect();
+      const headers = [...panel.querySelectorAll('thead th')];
+      const total = headers.find((header) => header.textContent.trim() === '总可休额度（h）').getBoundingClientRect();
+      return { wrapRight: wrap.right, totalRight: total.right };
+    });
+    assert.ok(teamSummaryVisibility.totalRight <= teamSummaryVisibility.wrapRight + 1, "团队汇总首屏应直接看到总可休额度");
+    assert.equal(
+      await page.locator('#team-balance-summary [data-query-key="area"] option').nth(1).textContent(),
+      "FBU-美东区",
+      "团队页划分区域案例应使用 FBU-美东区"
+    );
 
     await page.locator('#team-balance-summary [data-audience-drill="detail"][data-leave-type="年假"]').first().click();
     assert.ok(await page.locator('#team-balance-detail').evaluate((element) => element.classList.contains("active")), "团队汇总额度可下钻余额明细");
@@ -260,6 +291,7 @@ async function visibleToolbarButtonGaps(page, pageId) {
       ["姓名", "工号", "部门", "人员状态", "假期类型", "年度", "可休额度（h）", "已休额度（h）", "调整额度（h）", "当年发放额度（h）", "当年剩余额度（h）", "当年有效期", "结转额度（h）", "结转剩余额度（h）", "结转有效期"],
       "团队余额明细只展示可理解的额度结果字段"
     );
+    assert.deepEqual(await overflowingHeaders(page, 'team-balance-detail'), [], "团队余额明细表头不能溢出到相邻列");
     assert.ok((await page.locator('#team-balance-detail table').boundingBox()).width <= 1700, "团队明细删减字段后应同步收敛整表宽度");
     assert.equal(await page.locator('#team-balance-detail :is(.maintenance-action,.batch-maintenance-action,.calculate-action,.import-action)').count(), 0);
 
@@ -302,6 +334,11 @@ async function visibleToolbarButtonGaps(page, pageId) {
       ["总可休额度（h）", "年假可休额度（h）", "病假可休额度（h）", "调休假可休额度（h）"],
       "个人汇总应展示本人总可休额度和三类可休额度"
     );
+    assert.equal(
+      await page.locator('#my-balance-summary [data-query-key="area"]').inputValue(),
+      "FBU-美东区",
+      "个人页固定划分区域应使用 FBU-美东区"
+    );
 
     await page.locator('#my-balance-summary [data-audience-drill="detail"][data-leave-type="年假"]').click();
     assert.ok(await page.locator('#my-balance-detail').evaluate((element) => element.classList.contains("active")), "个人汇总额度可下钻余额明细");
@@ -325,6 +362,7 @@ async function visibleToolbarButtonGaps(page, pageId) {
       ["假期类型", "年度", "可休额度（h）", "已休额度（h）", "调整额度（h）", "当年发放额度（h）", "当年剩余额度（h）", "当年有效期", "结转额度（h）", "结转剩余额度（h）", "结转有效期"],
       "个人余额明细与团队页共用同一套额度结果字段"
     );
+    assert.deepEqual(await overflowingHeaders(page, 'my-balance-detail'), [], "个人余额明细表头不能溢出到相邻列");
     assert.ok((await page.locator('#my-balance-detail table').boundingBox()).width <= 1340, "个人明细删减字段后应同步收敛整表宽度");
     await page.setViewportSize({ width: 1600, height: 850 });
     const myDetailFill = await page.locator('#my-balance-detail').evaluate((panel) => {

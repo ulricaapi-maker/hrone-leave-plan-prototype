@@ -431,10 +431,41 @@
   display: none;
 }
 
+/* 团队汇总首屏保留员工识别信息和总可休额度。 */
+#team-balance-summary table {
+  width: 1000px;
+  min-width: 1000px;
+  table-layout: fixed;
+}
+
+#team-balance-summary th:nth-child(1),
+#team-balance-summary td:nth-child(1) { width: 64px; }
+
+#team-balance-summary th:nth-child(2),
+#team-balance-summary td:nth-child(2) { width: 84px; }
+
+#team-balance-summary th:nth-child(3),
+#team-balance-summary td:nth-child(3) { width: 108px; }
+
+#team-balance-summary th:nth-child(4),
+#team-balance-summary td:nth-child(4) { width: 100px; }
+
+#team-balance-summary th:nth-child(5),
+#team-balance-summary td:nth-child(5) { width: 84px; }
+
+#team-balance-summary th:nth-child(n+6),
+#team-balance-summary td:nth-child(n+6) { width: 140px; }
+
+#my-balance-summary table {
+  width: 100%;
+  min-width: 640px;
+  table-layout: fixed;
+}
+
 /* 团队余额明细冻结姓名、工号，沿用管理员页的信息冻结习惯。 */
 #team-balance-detail .quota-table {
-  width: 1660px;
-  min-width: 1660px;
+  width: 1700px;
+  min-width: 1700px;
   table-layout: fixed;
 }
 
@@ -469,6 +500,38 @@
 #team-balance-detail .quota-table tbody tr:hover td:nth-child(-n+2) {
   background: #f9fafe;
 }
+
+#team-balance-detail .quota-table th:nth-child(3),
+#team-balance-detail .quota-table td:nth-child(3) { width: 100px; }
+
+#team-balance-detail .quota-table th:nth-child(4),
+#team-balance-detail .quota-table td:nth-child(4) { width: 84px; }
+
+#team-balance-detail .quota-table th:nth-child(5),
+#team-balance-detail .quota-table td:nth-child(5) { width: 92px; }
+
+#team-balance-detail .quota-table th:nth-child(6),
+#team-balance-detail .quota-table td:nth-child(6) { width: 72px; }
+
+#team-balance-detail .quota-table th:nth-child(7),
+#team-balance-detail .quota-table td:nth-child(7),
+#team-balance-detail .quota-table th:nth-child(8),
+#team-balance-detail .quota-table td:nth-child(8),
+#team-balance-detail .quota-table th:nth-child(9),
+#team-balance-detail .quota-table td:nth-child(9),
+#team-balance-detail .quota-table th:nth-child(12),
+#team-balance-detail .quota-table td:nth-child(12),
+#team-balance-detail .quota-table th:nth-child(13),
+#team-balance-detail .quota-table td:nth-child(13),
+#team-balance-detail .quota-table th:nth-child(15),
+#team-balance-detail .quota-table td:nth-child(15) { width: 120px; }
+
+#team-balance-detail .quota-table th:nth-child(10),
+#team-balance-detail .quota-table td:nth-child(10),
+#team-balance-detail .quota-table th:nth-child(11),
+#team-balance-detail .quota-table td:nth-child(11),
+#team-balance-detail .quota-table th:nth-child(14),
+#team-balance-detail .quota-table td:nth-child(14) { width: 140px; }
 
 /* 团队已休明细冻结序号、姓名、工号。 */
 #team-balance-usage table {
@@ -556,7 +619,7 @@
 /* 个人余额明细隐藏本人信息后，以假期类型、年度作为冻结识别列。 */
 #my-balance-detail .quota-table {
   width: 100%;
-  min-width: 1260px;
+  min-width: 1304px;
   table-layout: fixed;
 }
 
@@ -591,6 +654,24 @@
 #my-balance-detail .quota-table tbody tr:hover td:nth-child(-n+2) {
   background: #f9fafe;
 }
+
+#my-balance-detail .quota-table th:nth-child(3),
+#my-balance-detail .quota-table td:nth-child(3),
+#my-balance-detail .quota-table th:nth-child(4),
+#my-balance-detail .quota-table td:nth-child(4),
+#my-balance-detail .quota-table th:nth-child(5),
+#my-balance-detail .quota-table td:nth-child(5),
+#my-balance-detail .quota-table th:nth-child(8),
+#my-balance-detail .quota-table td:nth-child(8),
+#my-balance-detail .quota-table th:nth-child(9),
+#my-balance-detail .quota-table td:nth-child(9) { width: 120px; }
+
+#my-balance-detail .quota-table th:nth-child(6),
+#my-balance-detail .quota-table td:nth-child(6),
+#my-balance-detail .quota-table th:nth-child(7),
+#my-balance-detail .quota-table td:nth-child(7),
+#my-balance-detail .quota-table th:nth-child(10),
+#my-balance-detail .quota-table td:nth-child(10) { width: 140px; }
 
 #my-balance-usage table {
   width: 1320px;

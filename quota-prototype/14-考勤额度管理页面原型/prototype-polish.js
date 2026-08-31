@@ -290,7 +290,7 @@
   function annualOverdueDialog() {
     var body = '<div class="dialog-form settlement-form">' +
       requiredSelect("年度", "annual-years", [["2025,2026", "2025 - 2026"], ["2026", "2026"], ["2025", "2025"]], "2025,2026") +
-      requiredSelect("划分区域", "divide-area", [["", "请选择"], ["深圳", "深圳"]], "") +
+      requiredSelect("划分区域", "divide-area", [["", "请选择"], ["FBU-美东区", "FBU-美东区"]], "") +
       '<div class="dialog-field"><label class="required">结算额度所属日期</label><input type="date" data-required data-field="settlement-belong-date" value="2026-08-31"></div>' +
       scopeField("annual-settlement-scope", "annual-target", "员工", "请输入姓名或工号，不填则按区域处理") +
       '</div>';
@@ -306,7 +306,7 @@
 
   function annualDimissionDialog() {
     var body = '<div class="dialog-form settlement-form">' +
-      requiredSelect("划分区域", "divide-area", [["", "请选择"], ["深圳", "深圳"]], "") +
+      requiredSelect("划分区域", "divide-area", [["", "请选择"], ["FBU-美东区", "FBU-美东区"]], "") +
       readonlyField("结算额度所属日期", "系统自动取离职日期", 'data-field="settlement-belong-date"') +
       scopeField("annual-dimission-scope", "annual-dimission-target", "员工", "请输入姓名或工号，不填则按区域处理") +
       '</div>';
@@ -631,7 +631,7 @@
     "休假日期": "leave-date"
   };
   var currentEmployee = {
-    area: "深圳",
+    area: "FBU-美东区",
     department: "运营组",
     employee: "张三",
     status: "正式"
@@ -789,7 +789,7 @@
       var searchBar = panel.querySelector(".search-bar");
       var areaItem = document.createElement("div");
       areaItem.className = "search-item";
-      areaItem.innerHTML = '<label>划分区域</label><select><option>全部区域</option><option>深圳</option></select>';
+      areaItem.innerHTML = '<label>划分区域</label><select><option>全部区域</option><option>FBU-美东区</option></select>';
       searchBar.insertBefore(areaItem, searchBar.firstElementChild);
     }
     configureQueries(panel, scope, kind);
@@ -957,6 +957,40 @@
 
   renderAudiencePage("team");
   renderAudiencePage("my");
+
+  function normalizeAreaControls(root) {
+    root.querySelectorAll(".search-item, .dialog-row, .dialog-field").forEach(function (item) {
+      var label = item.querySelector("label");
+      var select = item.querySelector("select");
+      if (!label || !select || cleanText(label.textContent) !== "划分区域") return;
+      Array.from(select.options).forEach(function (option) {
+        if (cleanText(option.textContent) === "深圳") {
+          option.textContent = "FBU-美东区";
+          option.value = "FBU-美东区";
+        }
+      });
+      if (!Array.from(select.options).some(function (option) { return cleanText(option.textContent) === "FBU-美东区"; })) {
+        select.add(new Option("FBU-美东区", "FBU-美东区"));
+      }
+    });
+  }
+
+  normalizeAreaControls(document);
+  var commonDialog = document.getElementById("commonDialog");
+  if (commonDialog) {
+    new MutationObserver(function () { normalizeAreaControls(commonDialog); }).observe(commonDialog, { childList: true, subtree: true });
+  }
+
+  document.querySelectorAll("table").forEach(function (table) {
+    var headers = Array.from(table.querySelectorAll("thead th")).map(function (header) { return cleanText(header.textContent); });
+    var areaIndex = headers.indexOf("划分区域");
+    if (areaIndex < 0) return;
+    table.querySelectorAll("tbody tr").forEach(function (row) {
+      if (row.children[areaIndex] && cleanText(row.children[areaIndex].textContent) === "深圳") {
+        row.children[areaIndex].textContent = "FBU-美东区";
+      }
+    });
+  });
 })();
 
 (function () {
