@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI休假固定表单框架</title>
+  <style>
+    :root {
+      --brand: #0e66fb;
+      --brand-hover: #0b57d9;
+      --brand-light: #e7f0ff;
+      --brand-soft: #f4f8ff;
+      --text: #333947;
+      --text-secondary: #666b75;
+      --text-muted: #999ca3;
+      --line: #e6e6e8;
+      --line-strong: #d7dbe3;
+      --surface: #ffffff;
+      --canvas: #f5f7fa;
+      --success: #16875d;
+      --warning: #b26a00;
+      --shadow: 0 12px 32px rgba(35, 55, 86, 0.09);
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+
+    body {
+      color: var(--text);
+      background: var(--canvas);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    .mobile-only, .mobile-detail-button, .mobile-month-label { display: none; }
+
+    .app-shell { height: 100vh; display: grid; grid-template-rows: 44px minmax(0, 1fr); }
+
+    .topbar {
+      height: 44px;
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      z-index: 20;
+    }
+
+    .brand { display: flex; align-items: center; gap: 18px; min-width: 0; }
+    .brand img { width: 93px; height: auto; display: block; }
+    .brand-divider { width: 1px; height: 18px; background: var(--line); }
+    .product-title { font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .top-context { color: var(--text-secondary); font-size: 13px; }
+
+    .agent-layout { min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+    .conversation-sidebar { min-height: 0; padding: 14px 12px; overflow-y: auto; border-right: 1px solid var(--line); background: #fff; }
+    .new-conversation { width: 100%; height: 34px; padding: 0 11px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; color: var(--text); cursor: pointer; }
+    .new-conversation:hover { border-color: #9bbcff; color: var(--brand); background: #fbfdff; }
+    .new-conversation svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .conversation-group { margin-top: 18px; }
+    .conversation-group-title { margin: 0 8px 6px; color: var(--text-muted); font-size: 11px; }
+    .conversation-list { display: grid; gap: 3px; }
+    .conversation-item { width: 100%; height: 34px; padding: 0 10px; overflow: hidden; border: 0; border-radius: 5px; background: transparent; color: var(--text-secondary); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .conversation-item:hover { background: #f5f7fa; color: var(--text); }
+    .conversation-item.is-active { background: var(--brand-light); color: var(--brand); font-weight: 600; }
+    .conversation-shell { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+    .conversation-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+    .workspace {
+      width: min(792px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 10px 0 16px;
+    }
+
+    .initial-user-row, .sent-user-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 0 18px 72px; }
+    .user-bubble { max-width: 70%; padding: 9px 14px; border-radius: 8px 8px 2px 8px; background: var(--brand); color: #fff; font-size: 15px; box-shadow: 0 3px 10px rgba(14, 102, 251, .12); }
+    .user-avatar { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: #eceff4; color: var(--text-secondary); font-weight: 600; }
+
+    .message-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .assistant-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      object-fit: cover;
+    }
+    .assistant-name { margin: 0 0 5px; font-weight: 600; }
+    .assistant-copy {
+      display: inline-block;
+      margin: 0 0 8px;
+      padding: 7px 11px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .composer-shell { padding: 10px 16px 14px; border-top: 1px solid var(--line); background: rgba(255, 255, 255, .96); }
+    .chat-composer {
+      width: min(792px, 100%);
+      min-height: 50px;
+      margin: 0 auto;
+      padding: 7px 8px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(35, 55, 86, .07);
+    }
+    .chat-composer:focus-within { border-color: #9bbcff; box-shadow: 0 0 0 2px rgba(14, 102, 251, .08); }
+    .composer-icon-button { flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+    .composer-icon-button:hover { background: #f4f6f9; color: var(--brand); }
+    .composer-icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .composer-input { min-width: 0; min-height: 34px; max-height: 92px; flex: 1; padding: 7px 2px 5px; resize: none; overflow-y: auto; border: 0; outline: 0; background: transparent; color: var(--text); line-height: 22px; }
+    .composer-input::placeholder { color: var(--text-muted); }
+    .composer-send { flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: var(--brand); color: #fff; cursor: pointer; }
+    .composer-send:hover:not(:disabled) { background: var(--brand-hover); }
+    .composer-send:disabled { background: #e5e8ed; color: #aeb3bc; cursor: not-allowed; }
+    .composer-send svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 5px 16px rgba(35, 55, 86, .06);
+      position: relative;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-header h1 { margin: 0; font-size: 16px; }
+
+    .form-section { padding: 9px 14px; border-bottom: 1px solid var(--line); }
+    .section-title-row { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+    .step {
+      min-width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--brand-light);
+      color: var(--brand);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .section-title-row h2 { margin: 0; font-size: 14px; }
+    .section-title-row > .text-button { margin-left: auto; font-size: 12px; }
+    .section-duration { margin-left: auto; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+    .section-duration-label { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+    .section-duration-value { color: var(--brand); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .section-duration-value.is-pending { color: var(--text-secondary); font-size: 13px; font-weight: 600; }
+
+    .quota-overview { margin-bottom: 8px; padding: 6px 8px; display: flex; align-items: center; gap: 12px; border-radius: var(--radius); background: #f6f8fb; }
+    .quota-caption { flex: none; color: var(--text-secondary); font-size: 12px; }
+    .quota-grid { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+    .quota-item { min-width: 0; padding: 0; display: flex; align-items: baseline; gap: 6px; }
+    .quota-item + .quota-item { border-left: 0; }
+    .quota-item + .quota-item::before { content: ""; width: 3px; height: 3px; margin-right: 4px; border-radius: 50%; background: #c6ccd6; align-self: center; }
+    .quota-name { font-weight: 600; white-space: nowrap; }
+    .quota-value { color: var(--brand); font-size: 16px; font-weight: 700; white-space: nowrap; }
+    .quota-value span { margin-left: 2px; font-size: 11px; font-weight: 400; }
+
+    .leave-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .leave-picker { display: contents; }
+    .leave-option {
+      min-height: 34px;
+      padding: 6px 10px;
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .leave-option:hover { border-color: #9bbcff; background: #fbfdff; }
+    .leave-option.is-selected { border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 1px var(--brand); }
+    .leave-option-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .leave-option-name { font-weight: 600; }
+    .radio-dot { width: 15px; height: 15px; border: 1px solid #b7bdc8; border-radius: 50%; background: #fff; }
+    .is-selected .radio-dot { border: 4px solid var(--brand); }
+    .leave-overview-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      min-height: 60px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .date-summary {
+      position: relative;
+      width: 100%;
+      min-height: 60px;
+      padding: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      text-align: left;
+      cursor: default;
+    }
+    .date-field { min-width: 0; display: flex; align-items: stretch; border: 0; border-radius: 0; background: #fff; transition: background .15s, box-shadow .15s; }
+    .date-field:hover { background: #fbfcfe; }
+    .date-field.has-time .date-button { flex: 0 1 auto; }
+    .date-summary.is-open.is-selecting-start .date-field:first-child,
+    .date-summary.is-open.is-selecting-end .date-field:last-child { background: #f8fbff; box-shadow: inset 0 2px 0 var(--brand); }
+    .date-button { min-width: 0; flex: none; padding: 7px 4px 7px 10px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+    .date-field:not(.has-time) .date-button { flex: 1; }
+    .date-label { display: block; color: var(--text-muted); font-size: 11px; }
+    .date-value-line { min-width: 0; margin-top: 3px; display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+    .date-value { color: var(--text); font-size: 15px; font-weight: 650; line-height: 22px; font-variant-numeric: tabular-nums; }
+    .date-time-part { width: 80px; margin-left: 4px; padding: 20px 4px 7px 0; display: flex; align-items: center; }
+    .date-time-part[hidden] { display: none; }
+    .date-time-part input { width: 100%; height: 26px; padding: 0 2px; border: 0; border-bottom: 1px solid #d7dce5; outline: 0; background: transparent; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
+    .date-time-part input:focus { border-bottom-color: var(--brand); }
+    .date-arrow { display: grid; place-items: center; color: #9ba8ba; font-size: 18px; }
+
+    .time-workspace { width: 100%; margin: 0; }
+    .schedule-layout { min-width: 0; }
+    .leave-journey-card { position: relative; border: 0; background: transparent; }
+    .leave-journey-card.is-calendar-open .leave-overview-row { border-radius: var(--radius) var(--radius) 0 0; }
+    .calendar-popover {
+      position: static;
+      width: 100%;
+      margin-top: 0;
+      border: 1px solid var(--line-strong);
+      border-top: 0;
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: #fff;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .calendar-popover[hidden] { display: none; }
+    .calendar-shell { background: #fff; }
+    .calendar-month-nav { width: 100%; padding: 7px 12px 2px; display: flex; align-items: center; gap: 4px; }
+    .calendar-collapse { margin-left: auto; }
+    .calendar-collapse svg { width: 14px; height: 14px; display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-button { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: #f4f6f9; color: var(--text-secondary); cursor: pointer; }
+    .icon-button:hover:not(:disabled) { background: var(--brand-light); color: var(--brand); }
+    .icon-button:disabled { background: transparent; color: #c8ccd3; cursor: not-allowed; }
+    .calendar-months { width: 100%; display: grid; grid-template-columns: 1fr; }
+    .calendar-month { padding: 2px 10px 7px; }
+    .month-title { margin-right: 6px; text-align: left; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .week-row, .day-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .weekday { padding: 2px 0; color: var(--text-muted); text-align: center; font-size: 11px; }
+    .calendar-day {
+      position: relative;
+      width: 100%;
+      height: 29px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      z-index: 0;
+    }
+    .calendar-day::before { content: ""; position: absolute; top: 2px; bottom: 2px; left: 50%; width: 32px; transform: translateX(-50%); border-radius: 4px; background: transparent; z-index: -1; }
+    .calendar-day.is-in-range::before { background: #dce9ff; }
+    .calendar-day.is-edge { color: #fff; font-weight: 700; }
+    .calendar-day.is-edge::before { background: var(--brand); }
+    .calendar-day.is-empty { pointer-events: none; }
+    .calendar-day:hover:not(.is-edge)::before { background: #edf3ff; }
+
+    .leave-detail { margin-top: 8px; border: 0; overflow: visible; background: transparent; }
+    .leave-detail[hidden] { display: none; }
+    .leave-detail-header { min-height: 24px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: transparent; border: 0; }
+    .leave-detail-title { font-size: 12px; font-weight: 600; }
+    .mobile-detail-expand { display: none; }
+    .leave-detail-table-wrap { max-height: 218px; margin-top: 5px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    .leave-detail-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+    .leave-detail-table th { height: 30px; padding: 0 10px; color: var(--text-muted); font-size: 11px; font-weight: 500; text-align: left; background: #f5f6f7; }
+    .leave-detail-table td { height: 36px; padding: 4px 10px; border-top: 1px solid var(--line); background: #fff; }
+    .leave-detail-table tbody tr:hover td { background: #f9fafe; }
+    .detail-date { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .inline-detail-field { min-width: 0; display: flex; align-items: center; gap: 5px; }
+    .inline-detail-field input { min-width: 0; width: 100%; height: 28px; padding: 0 6px; border: 1px solid #d9dee7; border-radius: 4px; outline: 0; background: #fff; color: var(--text); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .inline-detail-field input[type="number"] { flex: 1; width: auto; }
+    .inline-detail-field input:focus { border-color: var(--brand); box-shadow: 0 0 0 1px rgba(14, 102, 251, .08); }
+    .inline-detail-unit { flex: none; color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+    .detail-duration { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .detail-pending { color: var(--text-secondary); font-weight: 400; }
+
+    .supplement-panel { margin-top: 0; }
+    .supplement-panel[hidden] { display: none; }
+    .supplement-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 20px; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+    .supplement-field { min-width: 0; min-height: 36px; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 5px; }
+    .supplement-field + .supplement-field { border-left: 0; }
+    .supplement-field-label { display: block; color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .supplement-control { min-width: 0; width: 100%; height: 32px; padding: 0 9px; border: 1px solid #d9dee7; border-radius: 4px; outline: 0; color: var(--text); background: #fff; font-size: 12px; }
+    .supplement-control:focus { border-color: var(--brand); box-shadow: 0 0 0 1px rgba(14, 102, 251, .08); }
+    .gestational-inputs { min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 6px; }
+    .gestational-inputs input { flex: 0 0 92px; width: 92px; }
+    .gestational-unit { color: var(--text-secondary); font-size: 11px; }
+    .compact-upload { min-width: 0; height: 32px; padding: 0 8px 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px dashed #cbd3df; border-radius: 4px; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
+    .compact-upload:hover { border-color: #9bbcff; background: #fbfdff; }
+    .compact-upload-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .compact-upload-action { flex: none; color: var(--brand); font-weight: 600; }
+    .form-section[hidden] { display: none; }
+
+    .duration-result { min-height: 60px; padding: 7px 12px; display: grid; align-content: center; justify-items: start; border: 0; border-left: 1px solid #d8e4f8; border-radius: 0; background: var(--brand-soft); }
+    .duration-result-label { color: var(--text-muted); font-size: 11px; }
+    .duration-result-value { color: var(--brand); font-size: 18px; font-weight: 700; }
+    .duration-result-value.is-pending { color: var(--text-secondary); font-size: 15px; font-weight: 600; }
+
+    .time-sheet-backdrop { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 20px; background: rgba(31, 39, 54, .38); }
+    .time-sheet-backdrop[hidden] { display: none; }
+    .time-layer { width: min(620px, 100%); max-height: calc(100vh - 40px); overflow: auto; border-radius: 10px; background: #fff; box-shadow: 0 20px 48px rgba(15, 28, 49, .22); }
+    .time-layer-header { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .time-layer-title { font-weight: 600; }
+    .text-button { padding: 0; border: 0; background: transparent; color: var(--brand); cursor: pointer; white-space: nowrap; }
+    .batch-fields { padding: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+    .batch-field { display: grid; gap: 4px; }
+    .batch-field:nth-child(n) { grid-column: span 1; }
+    .batch-field:last-child { grid-column: 1 / 2; }
+    .batch-field label { color: var(--text); font-size: 12px; font-weight: 600; }
+    .batch-field input { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); outline: 0; background: #fff; }
+    .batch-field input:focus { border-color: var(--brand); box-shadow: 0 0 0 1px rgba(14, 102, 251, .08); }
+    .time-sheet-actions { padding: 14px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); background: #fafbfc; }
+
+    .card-actions { padding: 7px 14px; display: flex; justify-content: flex-end; gap: 10px; background: #fafbfc; }
+    .button { min-height: 32px; padding: 0 16px; border-radius: var(--radius); border: 1px solid var(--line-strong); background: #fff; cursor: pointer; }
+    .button:hover { border-color: #9bbcff; }
+    .button-primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+    .button-primary:hover { border-color: var(--brand-hover); background: var(--brand-hover); }
+    .button:disabled { border-color: #dfe2e7; background: #eef0f3; color: #a8acb3; cursor: not-allowed; }
+
+    .confirmation { padding: 28px 26px; }
+    .confirmation[hidden], .form-view[hidden] { display: none; }
+    .confirm-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-light); color: var(--brand); font-weight: 700; }
+    .confirmation h2 { margin: 14px 0 4px; font-size: 19px; }
+    .confirmation > p { margin: 0; color: var(--text-secondary); }
+    .confirm-grid { margin: 24px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .confirm-item { min-height: 82px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .confirm-item:nth-child(odd) { border-right: 1px solid var(--line); }
+    .confirm-item:nth-last-child(-n+2) { border-bottom: 0; }
+    .confirm-label { color: var(--text-muted); font-size: 12px; }
+    .confirm-value { margin-top: 6px; font-weight: 600; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .framework-note { margin-right: auto; align-self: center; color: var(--text-muted); font-size: 12px; }
+
+    .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(31, 39, 54, .42); }
+    .modal-backdrop[hidden] { display: none; }
+    .modal { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: #fff; border-radius: 10px; box-shadow: 0 20px 48px rgba(15, 28, 49, .22); }
+    .modal-header { padding: 20px 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .modal-header p { margin: 5px 0 0; color: var(--text-secondary); font-size: 12px; }
+    .modal-close { width: 30px; height: 30px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 20px; }
+    .modal-body { padding: 20px 22px; display: grid; gap: 17px; }
+    .field { display: grid; gap: 7px; }
+    .field label { font-weight: 600; }
+    .required { color: #d93b3b; }
+    .field textarea, .field select, .field input[type="text"], .field input[type="date"], .field input[type="number"] { width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius); background: #fff; color: var(--text); }
+    .field textarea { min-height: 88px; padding: 10px 11px; resize: vertical; }
+    .field select, .field input[type="text"], .field input[type="date"], .field input[type="number"] { height: 38px; padding: 0 10px; }
+    .field .gestational-inputs input { width: 92px; flex-basis: 92px; }
+    .placeholder-badge { margin-left: 5px; color: var(--brand); font-size: 11px; font-weight: 400; }
+    .upload-box { padding: 18px; border: 1px dashed #b9c2d0; border-radius: var(--radius); text-align: center; color: var(--text-secondary); background: #fafbfc; }
+    .upload-box input { display: block; max-width: 100%; margin: 10px auto 0; }
+    .modal-actions { padding: 14px 22px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line); background: #fafbfc; }
+    .submit-result { position: fixed; left: 50%; bottom: 28px; z-index: 70; transform: translateX(-50%); padding: 9px 16px; border-radius: var(--radius); background: #333947; color: #fff; box-shadow: var(--shadow); }
+    .submit-result[hidden] { display: none; }
+
+    @media (max-width: 760px) {
+      .topbar { height: 44px; padding: 0 16px; }
+      .brand img { width: 78px; }
+      .brand-divider, .top-context { display: none; }
+      .workspace { width: 100%; padding: 10px 10px 28px; }
+      .agent-layout { grid-template-columns: minmax(0, 1fr); }
+      .conversation-sidebar { display: none; }
+      .initial-user-row, .sent-user-row { margin: 0 0 12px 40px; }
+      .user-bubble { max-width: 84%; padding: 8px 12px; font-size: 14px; }
+      .user-avatar { width: 32px; height: 32px; border-radius: 8px; }
+      .composer-shell { padding: 8px 12px 10px; }
+      .message-row { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; }
+      .assistant-avatar { width: 30px; height: 30px; }
+      .assistant-copy { margin-bottom: 7px; font-size: 13px; }
+      .form-card { border-radius: 7px; box-shadow: 0 3px 12px rgba(35, 55, 86, .05); }
+      .card-header { padding: 9px 11px; }
+      .card-header h1 { font-size: 15px; }
+      .form-section, .confirmation { padding: 10px 11px; }
+      .section-title-row { margin-bottom: 7px; }
+
+      .quota-overview { padding: 7px 8px; display: block; }
+      .quota-caption { margin-bottom: 4px; }
+      .quota-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+      .quota-item { display: block; }
+      .quota-item + .quota-item { padding-left: 10px; border-left: 1px solid var(--line); }
+      .quota-item + .quota-item::before { display: none; }
+      .quota-name { display: block; color: var(--text-secondary); font-size: 11px; }
+      .quota-value { margin-top: 1px; font-size: 15px; }
+
+      .mobile-leave-type-trigger { width: 100%; min-height: 42px; padding: 0 11px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: #fff; text-align: left; }
+      .mobile-leave-type-trigger > span:first-child { color: var(--text-secondary); font-size: 12px; }
+      .mobile-leave-type-trigger strong { justify-self: end; font-size: 14px; }
+      .mobile-leave-type-trigger > span:last-child { color: var(--text-muted); font-size: 22px; line-height: 1; }
+      .mobile-type-backdrop.is-open { position: fixed; inset: 0; z-index: 59; display: block; background: rgba(31, 39, 54, .42); }
+      .leave-picker { position: fixed; right: 0; bottom: 0; left: 0; z-index: 60; max-height: 82dvh; display: none; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border-radius: 14px 14px 0 0; background: #fff; box-shadow: 0 -12px 34px rgba(26, 36, 51, .16); }
+      .leave-picker.is-mobile-open { display: grid; }
+      .mobile-picker-head { height: 52px; padding: 0 14px; display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; border-bottom: 1px solid var(--line); text-align: center; }
+      .mobile-picker-head button { width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: var(--text-secondary); font-size: 22px; }
+      .mobile-type-search { height: 38px; margin: 10px 14px 6px; padding: 0 10px; display: flex; align-items: center; gap: 7px; border-radius: 6px; background: #f4f6f9; color: var(--text-muted); }
+      .mobile-type-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; }
+      .leave-options { display: block; overflow-y: auto; padding: 0 14px; }
+      .leave-option { width: 100%; min-height: 48px; padding: 0 2px; border: 0; border-bottom: 1px solid #eef0f3; border-radius: 0; background: #fff; }
+      .leave-option:hover { border-color: #eef0f3; background: #fff; }
+      .leave-option.is-selected { border-color: #eef0f3; background: #fff; box-shadow: none; }
+      .leave-option.is-mobile-draft { color: var(--brand); }
+      .leave-option.is-mobile-draft .radio-dot { border: 4px solid var(--brand); }
+      .mobile-picker-actions { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid var(--line); background: #fff; }
+      .mobile-picker-actions button { height: 40px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; }
+      .mobile-picker-actions button:last-child { border-color: var(--brand); background: var(--brand); color: #fff; }
+
+      .leave-overview-row { display: block; min-height: 0; overflow: visible; border: 0; background: transparent; }
+      .date-summary { min-height: 0; display: grid; grid-template-columns: 1fr; gap: 7px; }
+      .date-arrow { display: none; }
+      .date-field { min-height: 48px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--radius); }
+      .date-field.has-time .date-button { flex: 1; }
+      .date-summary.is-open.is-selecting-start .date-field:first-child,
+      .date-summary.is-open.is-selecting-end .date-field:last-child { background: #fff; box-shadow: inset 3px 0 0 var(--brand); }
+      .date-button { flex: 1; padding: 7px 5px 7px 10px; }
+      .date-value { font-size: 14px; }
+      .date-time-part { width: 92px; margin-left: auto; padding: 15px 9px 7px 0; }
+      .duration-result { min-height: 38px; margin-top: 7px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: var(--radius); background: #f6f8fb; }
+      .duration-result-value { font-size: 16px; }
+      .duration-result-value.is-pending { font-size: 14px; }
+
+      .calendar-popover { position: fixed; inset: 0; z-index: 80; width: 100%; height: 100dvh; overflow-y: auto; border: 0; border-radius: 0; background: #fff; }
+      .mobile-calendar-head { position: sticky; top: 0; z-index: 3; height: 52px; padding: 0 10px; display: grid; grid-template-columns: 44px 1fr 54px; align-items: center; border-bottom: 1px solid var(--line); background: #fff; text-align: center; }
+      .mobile-calendar-head button { height: 36px; padding: 0; border: 0; background: transparent; }
+      #mobileCalendarBack { font-size: 26px; text-align: left; }
+      #mobileCalendarConfirm { color: var(--brand); font-weight: 600; }
+      #mobileCalendarConfirm:disabled { color: #b8bdc6; }
+      .mobile-calendar-summary { position: sticky; top: 52px; z-index: 2; min-height: 66px; padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); align-items: center; border-bottom: 1px solid var(--line); background: #fff; }
+      .mobile-calendar-summary > button { min-width: 0; padding: 5px 7px; display: grid; gap: 2px; border: 0; border-radius: 5px; background: #f6f8fb; text-align: left; }
+      .mobile-calendar-summary > button.is-active { background: var(--brand-light); box-shadow: inset 0 -2px 0 var(--brand); }
+      .mobile-calendar-summary span { color: var(--text-muted); font-size: 11px; }
+      .mobile-calendar-summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+      .mobile-calendar-summary > span { text-align: center; font-size: 17px; }
+      .calendar-month-nav { display: none; }
+      .calendar-months { display: block; }
+      .calendar-month { padding: 16px 12px 2px; }
+      .calendar-month + .calendar-month { padding-top: 22px; }
+      .mobile-month-label { display: block; margin: 0 0 10px; text-align: center; font-size: 16px; font-weight: 600; }
+      .weekday { padding: 5px 0; }
+      .calendar-day { height: 42px; min-height: 42px; }
+      .calendar-day::before { top: 4px; bottom: 4px; width: 38px; border-radius: 19px; }
+
+      .leave-detail { margin-top: 10px; }
+      .leave-detail-header { min-height: 30px; }
+      .leave-detail-table-wrap { max-height: none; margin-top: 4px; overflow: visible; border: 1px solid var(--line); border-radius: 6px; }
+      .leave-detail-table, .leave-detail-table tbody, .leave-detail-table tr, .leave-detail-table td { display: block; width: 100%; }
+      .leave-detail-table colgroup, .leave-detail-table thead { display: none; }
+      .leave-detail-table tr { padding: 0; border-top: 1px solid var(--line); }
+      .leave-detail-table tr:first-child { border-top: 0; }
+      .leave-detail-table td { height: auto; padding: 0; border: 0; }
+      .leave-detail-table td:not(:first-child) { display: none; }
+      .leave-detail-table .detail-date { display: none; }
+      .mobile-detail-button { width: 100%; min-height: 56px; padding: 8px 10px; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; border: 0; background: #fff; text-align: left; }
+      .mobile-detail-date { font-weight: 600; }
+      .mobile-detail-period { color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+      .mobile-detail-duration { grid-row: 1 / 3; grid-column: 2; align-self: center; color: var(--brand); font-weight: 600; }
+      .leave-detail:not(.is-mobile-expanded) tbody tr:nth-child(n+4) { display: none; }
+      .mobile-detail-expand { width: 100%; height: 38px; display: block; border: 0; border-top: 1px solid var(--line); background: #fff; color: var(--brand); }
+      .mobile-detail-expand[hidden], .leave-detail.is-mobile-expanded .mobile-detail-expand { display: none; }
+      .leave-detail.is-mobile-expanded { position: fixed; inset: 0; z-index: 85; height: 100dvh; margin: 0; overflow-y: auto; background: #fff; }
+      .leave-detail.is-mobile-expanded .leave-detail-header { position: sticky; top: 0; z-index: 2; min-height: 52px; padding: 0 10px; display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; border-bottom: 1px solid var(--line); background: #fff; }
+      .leave-detail.is-mobile-expanded .mobile-detail-back { width: 40px; height: 40px; padding: 0; display: block; border: 0; background: transparent; font-size: 26px; text-align: left; }
+      .leave-detail.is-mobile-expanded .leave-detail-title { justify-self: center; font-size: 15px; }
+      .leave-detail.is-mobile-expanded .leave-detail-table-wrap { margin: 0; border: 0; border-radius: 0; }
+      .leave-detail.is-mobile-expanded tbody tr:nth-child(n) { display: block; }
+
+      .supplement-grid { grid-template-columns: 1fr; gap: 8px; }
+      .supplement-field { grid-template-columns: 1fr; align-items: start; gap: 5px; }
+      .supplement-field-label { display: block; color: var(--text); font-size: 12px; font-weight: 600; }
+      .gestational-inputs input { flex-basis: 68px; width: 68px; }
+
+      .time-sheet-backdrop { z-index: 90; display: block; padding: 0; background: #fff; }
+      .time-layer { width: 100%; height: 100dvh; max-height: none; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border-radius: 0; box-shadow: none; }
+      .time-layer-header { min-height: 52px; padding: 0 10px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; text-align: center; }
+      .mobile-time-back { width: 40px; height: 40px; padding: 0; display: block; border: 0; background: transparent; font-size: 26px; text-align: left; }
+      .time-layer-title { grid-column: 2; }
+      .batch-fields { padding: 18px 16px; display: grid; grid-template-columns: 1fr; align-content: start; gap: 15px; overflow-y: auto; }
+      .batch-field:nth-child(n), .batch-field:last-child { grid-column: 1; }
+      .batch-field input { height: 42px; }
+      .time-sheet-actions { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+      .time-sheet-actions .button { min-height: 40px; flex: 1; }
+
+      .card-actions { padding: 10px 11px; }
+      .card-actions .button-primary { width: 100%; }
+      .confirm-grid { grid-template-columns: 1fr; }
+      .confirm-item, .confirm-item:nth-child(odd), .confirm-item:nth-last-child(-n+2) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .confirm-item:last-child { border-bottom: 0; }
+      .confirm-actions { flex-wrap: wrap; }
+      .framework-note { width: 100%; margin: 0 0 4px; }
+      .confirm-actions .button { flex: 1; }
+      .modal-backdrop { padding: 12px; align-items: end; }
+      .modal { max-height: calc(100vh - 24px); border-radius: 10px 10px 0 0; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    框架假设：大模型只预填意图、假别与时间；额度、候选、班次和试算均由系统返回。
+    本页只验证固定信息架构与主要交互，不固化生产字段、计算公式、异常分流或提交接口。
+  -->
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="../assets/hrone-brand/hrone-wordmark.png" alt="HRONE">
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="product-title">AI 助手</span>
+      </div>
+      <span class="top-context">员工服务 · 休假</span>
+    </header>
+
+    <div class="agent-layout">
+    <aside class="conversation-sidebar" data-testid="conversation-list" aria-label="对话列表">
+      <button class="new-conversation" type="button" aria-label="新建对话">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
+        <span>新建对话</span>
+      </button>
+      <section class="conversation-group" aria-labelledby="todayConversations">
+        <h2 class="conversation-group-title" id="todayConversations">今天</h2>
+        <div class="conversation-list">
+          <button class="conversation-item is-active" type="button" aria-current="page">休假申请</button>
+        </div>
+      </section>
+      <section class="conversation-group" aria-labelledby="recentConversations">
+        <h2 class="conversation-group-title" id="recentConversations">最近 7 天</h2>
+        <div class="conversation-list">
+          <button class="conversation-item" type="button">假期余额查询</button>
+          <button class="conversation-item" type="button">休假进度查询</button>
+        </div>
+      </section>
+    </aside>
+    <div class="conversation-shell">
+    <main class="conversation-scroll" data-testid="conversation-scroll">
+      <div class="workspace" id="conversationMessages">
+      <div class="initial-user-row" data-testid="initial-user-message">
+        <div class="user-bubble">我想申请调休假</div>
+        <div class="user-avatar" data-testid="user-avatar" aria-label="我">我</div>
+      </div>
+      <div class="message-row">
+        <img class="assistant-avatar" src="../assets/hrone-brand/hrone-agent-mark.png" alt="AI助手">
+        <div>
+          <div class="assistant-name">HRONE AI 助手</div>
+          <p class="assistant-copy">已识别为调休假，请核对并补充。</p>
+
+          <article class="form-card" data-testid="fixed-leave-form">
+            <div class="form-view" data-testid="form-view">
+              <header class="card-header">
+                <h1>休假申请</h1>
+              </header>
+
+              <section class="form-section">
+                <div class="section-title-row">
+                  <span class="step">01</span>
+                  <h2>选择假期类型</h2>
+                </div>
+                <div class="quota-overview" data-testid="quota-overview">
+                  <div class="quota-caption">我的假期余额</div>
+                  <div class="quota-grid">
+                    <div class="quota-item"><div class="quota-name">调休假</div><div class="quota-value">32<span>小时</span></div></div>
+                    <div class="quota-item"><div class="quota-name">年假</div><div class="quota-value">40<span>小时</span></div></div>
+                    <div class="quota-item"><div class="quota-name">病假</div><div class="quota-value">40<span>小时</span></div></div>
+                  </div>
+                </div>
+                <button class="mobile-leave-type-trigger mobile-only" id="mobileLeaveTypeTrigger" data-testid="mobile-leave-type-trigger" type="button" aria-haspopup="dialog">
+                  <span>假期类型</span><strong id="mobileLeaveTypeValue">调休假</strong><span aria-hidden="true">›</span>
+                </button>
+                <div class="mobile-type-backdrop mobile-only" id="mobileTypeBackdrop"></div>
+                <div class="leave-picker" id="leavePicker" role="dialog" aria-modal="true" aria-label="选择假期类型">
+                  <div class="mobile-picker-head mobile-only">
+                    <button type="button" id="mobileTypeCancelTop" aria-label="关闭假期类型选择">×</button>
+                    <strong>选择假期类型</strong>
+                    <span></span>
+                  </div>
+                  <label class="mobile-type-search mobile-only"><span aria-hidden="true">⌕</span><input id="mobileTypeSearch" type="search" placeholder="搜索假期类型" aria-label="搜索假期类型"></label>
+                  <div class="leave-options" role="radiogroup" aria-label="可选休假类型">
+                  <button class="leave-option is-selected" type="button" role="radio" aria-checked="true" data-leave-id="comp-time" data-name="调休假" data-unit="hour">
+                    <span class="leave-option-top"><span class="leave-option-name">调休假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="annual" data-name="年假" data-unit="hour">
+                    <span class="leave-option-top"><span class="leave-option-name">年假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="sick" data-name="病假" data-unit="hour">
+                    <span class="leave-option-top"><span class="leave-option-name">病假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="marriage" data-name="婚假" data-unit="day">
+                    <span class="leave-option-top"><span class="leave-option-name">婚假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="bereavement" data-name="丧假">
+                    <span class="leave-option-top"><span class="leave-option-name">丧假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="maternity" data-name="产假">
+                    <span class="leave-option-top"><span class="leave-option-name">产假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="breastfeeding" data-name="哺乳假">
+                    <span class="leave-option-top"><span class="leave-option-name">哺乳假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="prenatal" data-name="产检假">
+                    <span class="leave-option-top"><span class="leave-option-name">产检假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="personal" data-name="事假">
+                    <span class="leave-option-top"><span class="leave-option-name">事假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="paternity" data-name="陪产假">
+                    <span class="leave-option-top"><span class="leave-option-name">陪产假</span><span class="radio-dot"></span></span>
+                  </button>
+                  <button class="leave-option" type="button" role="radio" aria-checked="false" data-leave-id="miscarriage" data-name="流产假">
+                    <span class="leave-option-top"><span class="leave-option-name">流产假</span><span class="radio-dot"></span></span>
+                  </button>
+                  </div>
+                  <div class="mobile-picker-actions mobile-only"><button type="button" id="mobileTypeCancel">取消</button><button type="button" id="mobileTypeConfirm">确定</button></div>
+                </div>
+              </section>
+
+              <section class="form-section" data-testid="leave-time-section">
+                <div class="section-title-row">
+                  <span class="step">02</span>
+                  <h2>休假时间</h2>
+                  <div class="section-duration"><span class="section-duration-label">休假时长</span><strong class="section-duration-value is-pending" data-testid="leave-duration">--</strong></div>
+                </div>
+                <div class="time-workspace">
+                  <div class="schedule-layout">
+                    <div class="leave-journey-card" data-testid="leave-journey-card">
+                    <div class="leave-overview-row" data-testid="leave-overview-row">
+                      <div class="date-summary" id="datePickerTrigger">
+                        <div class="date-field">
+                          <button class="date-button" id="startDateTrigger" data-testid="start-date-trigger" type="button" aria-label="选择开始日期" aria-expanded="false">
+                            <span class="date-label" data-testid="start-label">开始日期</span>
+                            <span class="date-value-line"><span class="date-value" id="startDateText" data-testid="start-date">请选择开始日期</span></span>
+                          </button>
+                          <label class="date-time-part" data-testid="start-time-part" hidden><input id="hourStartTime" type="time" aria-label="开始时间"></label>
+                        </div>
+                        <span class="date-arrow" aria-hidden="true">→</span>
+                        <div class="date-field">
+                          <button class="date-button" id="endDateTrigger" data-testid="end-date-trigger" type="button" aria-label="选择结束日期" aria-expanded="false">
+                            <span class="date-label" data-testid="end-label">结束日期</span>
+                            <span class="date-value-line"><span class="date-value" id="endDateText" data-testid="end-date">请选择结束日期</span></span>
+                          </button>
+                          <label class="date-time-part" data-testid="end-time-part" hidden><input id="hourEndTime" type="time" aria-label="结束时间"></label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="calendar-popover" data-testid="calendar-popover" role="region" aria-label="选择休假日期" hidden>
+                      <div class="mobile-calendar-head mobile-only">
+                        <button type="button" id="mobileCalendarBack" aria-label="返回休假申请">‹</button>
+                        <strong>选择休假时间</strong>
+                        <button type="button" id="mobileCalendarConfirm" data-testid="mobile-calendar-confirm">确定</button>
+                      </div>
+                      <div class="mobile-calendar-summary mobile-only">
+                        <button type="button" id="mobileStartSummary"><span>开始日期</span><strong id="mobileStartDateText">请选择</strong></button>
+                        <span aria-hidden="true">→</span>
+                        <button type="button" id="mobileEndSummary"><span>结束日期</span><strong id="mobileEndDateText">请选择</strong></button>
+                      </div>
+                      <div class="calendar-shell">
+                        <div class="calendar-month-nav">
+                          <div class="month-title" id="monthTitle"></div>
+                          <button class="icon-button" id="previousMonth" type="button" aria-label="上个月">‹</button>
+                          <button class="icon-button" id="nextMonth" type="button" aria-label="下个月">›</button>
+                          <button class="icon-button calendar-collapse" id="collapseCalendar" type="button" aria-label="收起日历" title="收起日历">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 10 4-4 4 4"></path></svg>
+                          </button>
+                        </div>
+                        <div class="calendar-months" id="calendarMonths"></div>
+                      </div>
+                    </div>
+                    <section class="leave-detail" data-testid="leave-detail" aria-labelledby="leaveDetailTitle" hidden>
+                      <header class="leave-detail-header">
+                        <button class="mobile-detail-back mobile-only" type="button" id="closeMobileDetails" aria-label="返回休假申请">‹</button>
+                        <div class="leave-detail-title" id="leaveDetailTitle">休假明细</div>
+                        <button class="text-button" type="button" id="editDetails">批量设置</button>
+                      </header>
+                      <div class="leave-detail-table-wrap">
+                        <table class="leave-detail-table" data-testid="leave-detail-table">
+                          <colgroup><col style="width:24%"><col style="width:18%"><col style="width:18%"><col style="width:24%"><col style="width:16%"></colgroup>
+                          <thead><tr><th>日期</th><th>开始时间</th><th>结束时间</th><th>扣减休息时长</th><th>休假时长</th></tr></thead>
+                          <tbody id="leaveDetailRows"></tbody>
+                        </table>
+                        <button class="mobile-detail-expand" type="button" id="mobileExpandDetails" hidden></button>
+                      </div>
+                    </section>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="form-section" data-testid="supplement-section" hidden>
+                <div class="section-title-row">
+                  <span class="step">03</span>
+                  <h2>补充信息</h2>
+                </div>
+                <section class="supplement-panel" data-testid="supplement-panel" aria-label="补充信息" hidden>
+                  <div class="supplement-grid" id="inlineSupplementFields"></div>
+                </section>
+              </section>
+
+              <footer class="card-actions">
+                <button class="button button-primary" type="button" id="trialButton" disabled>确认提交</button>
+              </footer>
+            </div>
+          </article>
+          <div class="submit-result" data-testid="submit-result" id="submitResult" role="status" hidden>提交成功（框架示意）</div>
+        </div>
+      </div>
+      </div>
+    </main>
+    <footer class="composer-shell">
+      <form class="chat-composer" data-testid="chat-composer" id="chatComposer" aria-label="消息输入区">
+        <button class="composer-icon-button" type="button" aria-label="添加附件" title="添加附件">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.2 10.8 4.7-4.7a2.7 2.7 0 1 1 3.8 3.8l-6.2 6.2a4 4 0 0 1-5.7-5.7l6.4-6.4"></path></svg>
+        </button>
+        <input id="chatAttachment" type="file" hidden>
+        <textarea class="composer-input" id="chatInput" rows="1" aria-label="输入消息" placeholder="输入消息，继续补充休假信息…"></textarea>
+        <button class="composer-send" id="sendMessage" type="submit" aria-label="发送消息" title="发送消息" disabled>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 6l4 4-4 4"></path></svg>
+        </button>
+      </form>
+    </footer>
+    </div>
+    </div>
+  </div>
+
+  <div class="time-sheet-backdrop" id="timeSheetBackdrop" hidden>
+    <section class="time-layer" data-testid="time-layer" role="dialog" aria-modal="true" aria-labelledby="timeLayerTitle">
+      <div class="time-layer-header">
+        <button class="mobile-time-back mobile-only" id="mobileTimeBack" type="button" aria-label="返回休假申请">‹</button>
+        <h2 class="time-layer-title" id="timeLayerTitle" style="margin:0;font-size:16px">批量设置休假明细</h2>
+      </div>
+      <div class="batch-fields" id="batchFields">
+        <div class="batch-field"><label for="batchStartDate">开始日期</label><input id="batchStartDate" type="date"></div>
+        <div class="batch-field"><label for="batchEndDate">结束日期</label><input id="batchEndDate" type="date"></div>
+        <div class="batch-field"><label for="batchStart">开始时间</label><input id="batchStart" type="time" value="09:00"></div>
+        <div class="batch-field"><label for="batchEnd">结束时间</label><input id="batchEnd" type="time" value="18:00"></div>
+        <div class="batch-field batch-field-rest"><label for="batchRest">扣减休息时长</label><input id="batchRest" type="number" min="0" step="0.5" value="1" aria-label="扣减休息时长"></div>
+      </div>
+      <footer class="time-sheet-actions"><button class="button" type="button" id="closeTimes">取消</button><button class="button button-primary" type="button" id="saveTimes">确定</button></footer>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="supplementModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-header">
+        <div><h2 id="modalTitle">信息补充</h2></div>
+        <button class="modal-close" type="button" aria-label="关闭弹窗">×</button>
+      </header>
+      <div class="modal-body" id="modalSupplementFields"></div>
+      <footer class="modal-actions"><button class="button" type="button" id="cancelSupplement">取消</button><button class="button button-primary" type="button" id="saveSupplement">确定</button></footer>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      leaveId: 'comp-time',
+      leaveName: '调休假',
+      unit: 'hour',
+      supplementData: {},
+      attachmentName: '',
+      pendingLeave: null,
+      start: null,
+      end: null,
+      startTime: '',
+      endTime: '',
+      selecting: 'start',
+      monthIndex: 0,
+      timeSaved: false,
+      detailRows: [],
+      totalHours: null,
+      mobileLeaveDraftId: 'comp-time',
+      editingDetailIndex: null,
+      mobileDetailsExpanded: false,
+    }
+
+    // 原型用配置：模拟后端按当前假别返回的动态字段，不代表生产 DTO 或前端按名称固化规则。
+    const demoLeaveRequirements = {
+      sick: [{ type: 'attachment', key: 'attachment', label: '附件' }],
+      marriage: [{ type: 'attachment', key: 'attachment', label: '附件' }],
+      bereavement: [{ type: 'text', key: 'relationship', label: '去世亲属关系', placeholder: '请选择或输入亲属关系' }],
+      maternity: [{ type: 'date', key: 'expectedDeliveryDate', label: '预产期' }],
+      prenatal: [{ type: 'gestational', key: 'gestationalAge', label: '孕周' }],
+      miscarriage: [{ type: 'gestational', key: 'gestationalAge', label: '孕周' }],
+    }
+
+    const modal = document.getElementById('supplementModal')
+    const trialButton = document.getElementById('trialButton')
+    const startDateText = document.getElementById('startDateText')
+    const endDateText = document.getElementById('endDateText')
+    const datePickerTrigger = document.getElementById('datePickerTrigger')
+    const startDateTrigger = document.getElementById('startDateTrigger')
+    const endDateTrigger = document.getElementById('endDateTrigger')
+    const leaveJourneyCard = document.querySelector('[data-testid="leave-journey-card"]')
+    const calendarPopover = document.querySelector('[data-testid="calendar-popover"]')
+    const leaveDuration = document.querySelector('[data-testid="leave-duration"]')
+    const leaveDetail = document.querySelector('[data-testid="leave-detail"]')
+    const leaveDetailRows = document.getElementById('leaveDetailRows')
+    const timeSheetBackdrop = document.getElementById('timeSheetBackdrop')
+    const editDetails = document.getElementById('editDetails')
+    const startTimePart = document.querySelector('[data-testid="start-time-part"]')
+    const endTimePart = document.querySelector('[data-testid="end-time-part"]')
+    const hourStartTime = document.getElementById('hourStartTime')
+    const hourEndTime = document.getElementById('hourEndTime')
+    const saveTimes = document.getElementById('saveTimes')
+    const supplementPanel = document.querySelector('[data-testid="supplement-panel"]')
+    const supplementSection = document.querySelector('[data-testid="supplement-section"]')
+    const inlineSupplementFields = document.getElementById('inlineSupplementFields')
+    const modalSupplementFields = document.getElementById('modalSupplementFields')
+    const conversationScroll = document.querySelector('[data-testid="conversation-scroll"]')
+    const conversationMessages = document.getElementById('conversationMessages')
+    const chatComposer = document.getElementById('chatComposer')
+    const chatInput = document.getElementById('chatInput')
+    const sendMessage = document.getElementById('sendMessage')
+    const chatAttachment = document.getElementById('chatAttachment')
+    const leavePicker = document.getElementById('leavePicker')
+    const mobileTypeBackdrop = document.getElementById('mobileTypeBackdrop')
+    const mobileLeaveTypeTrigger = document.getElementById('mobileLeaveTypeTrigger')
+    const mobileLeaveTypeValue = document.getElementById('mobileLeaveTypeValue')
+    const mobileTypeSearch = document.getElementById('mobileTypeSearch')
+    const mobileCalendarConfirm = document.getElementById('mobileCalendarConfirm')
+    const mobileStartSummary = document.getElementById('mobileStartSummary')
+    const mobileEndSummary = document.getElementById('mobileEndSummary')
+    const mobileStartDateText = document.getElementById('mobileStartDateText')
+    const mobileEndDateText = document.getElementById('mobileEndDateText')
+    const mobileExpandDetails = document.getElementById('mobileExpandDetails')
+
+    const months = [
+      { year: 2026, month: 8, label: '2026年9月' },
+      { year: 2026, month: 9, label: '2026年10月' },
+    ]
+
+    function pad(value) { return String(value).padStart(2, '0') }
+    function dateKey(year, month, day) { return `${year}-${pad(month + 1)}-${pad(day)}` }
+    function displayDate(value) { return value ? value.replaceAll('-', '/') : '请选择' }
+    function isMobileViewport() { return window.matchMedia('(max-width: 760px)').matches }
+
+    function monthMarkup({ year, month, label }) {
+      const firstDay = new Date(year, month, 1).getDay()
+      const lastDate = new Date(year, month + 1, 0).getDate()
+      const blanks = Array.from({ length: firstDay }, () => '<span class="calendar-day is-empty"></span>').join('')
+      const days = Array.from({ length: lastDate }, (_, index) => {
+        const day = index + 1
+        const key = dateKey(year, month, day)
+        const inRange = state.start && state.end && key >= state.start && key <= state.end
+        const rangeStart = key === state.start
+        const rangeEnd = key === state.end
+        const edge = rangeStart || rangeEnd
+        return `<button class="calendar-day${inRange ? ' is-in-range' : ''}${edge ? ' is-edge' : ''}${rangeStart ? ' is-range-start' : ''}${rangeEnd ? ' is-range-end' : ''}" type="button" data-date="${key}" aria-label="${key}">${day}</button>`
+      }).join('')
+      return `<section class="calendar-month"><h3 class="mobile-month-label">${label}</h3><div class="week-row">${['日','一','二','三','四','五','六'].map(day => `<span class="weekday">${day}</span>`).join('')}</div><div class="day-grid">${blanks}${days}</div></section>`
+    }
+
+    function renderCalendars() {
+      const container = document.getElementById('calendarMonths')
+      document.getElementById('monthTitle').textContent = months[state.monthIndex].label
+      container.innerHTML = (isMobileViewport() ? months : [months[state.monthIndex]]).map(monthMarkup).join('')
+      container.querySelectorAll('[data-date]').forEach(button => button.addEventListener('click', () => selectDate(button.dataset.date)))
+      document.getElementById('previousMonth').disabled = state.monthIndex === 0
+      document.getElementById('nextMonth').disabled = state.monthIndex === months.length - 1
+    }
+
+    function selectDate(key) {
+      let selectionComplete = false
+      if (state.selecting === 'start' || !state.start) {
+        state.start = key
+        state.end = state.unit === 'hour' ? key : null
+        state.selecting = 'end'
+        state.detailRows = []
+      } else {
+        if (key < state.start) return
+        state.end = key
+        state.selecting = 'end'
+        state.detailRows = []
+        selectionComplete = true
+      }
+      updateDateSummary()
+      updateDateFocusState()
+      state.timeSaved = false
+      state.totalHours = null
+      updateDurationResult()
+      renderCalendars()
+      if (selectionComplete && !isMobileViewport()) closeCalendar()
+      renderHourTimeRow()
+      recalculateHourlyState()
+      renderLeaveDetails()
+      updateDurationResult()
+      updateAction()
+    }
+
+    function datesBetween(start, end) {
+      const result = []
+      const current = new Date(`${start}T12:00:00`)
+      const finish = new Date(`${end}T12:00:00`)
+      while (current <= finish) {
+        result.push(dateKey(current.getFullYear(), current.getMonth(), current.getDate()))
+        current.setDate(current.getDate() + 1)
+      }
+      return result
+    }
+
+    function updateDateSummary() {
+      startDateText.textContent = state.start ? displayDate(state.start) : '请选择开始日期'
+      endDateText.textContent = state.end ? displayDate(state.end) : (state.unit === 'day' && state.start ? '请选择结束日期（可同日）' : '请选择结束日期')
+      mobileStartDateText.textContent = state.start ? displayDate(state.start) : '请选择'
+      mobileEndDateText.textContent = state.end ? displayDate(state.end) : '请选择'
+      mobileStartSummary.classList.toggle('is-active', state.selecting === 'start')
+      mobileEndSummary.classList.toggle('is-active', state.selecting === 'end')
+      mobileCalendarConfirm.disabled = !(state.start && (state.unit === 'hour' || state.end))
+    }
+
+    function updateDurationResult() {
+      const dayResult = state.unit === 'day' && state.start && state.end
+      const hourResult = state.unit === 'hour' && state.timeSaved && state.totalHours !== null
+      const hasResult = Boolean(dayResult || hourResult)
+      leaveDuration.textContent = dayResult
+        ? `${datesBetween(state.start, state.end).length}天`
+        : hourResult ? `${Number(state.totalHours.toFixed(1))}h` : '--'
+      leaveDuration.classList.toggle('is-pending', !hasResult)
+    }
+
+    function updateDateFocusState() {
+      datePickerTrigger.classList.toggle('is-selecting-start', state.selecting === 'start')
+      datePickerTrigger.classList.toggle('is-selecting-end', state.selecting === 'end')
+    }
+
+    function openCalendar(selecting = 'start') {
+      state.selecting = selecting === 'end' && !state.start ? 'start' : selecting
+      if (state.selecting === 'start' && state.unit === 'day') state.end = null
+      calendarPopover.hidden = false
+      leaveJourneyCard.classList.add('is-calendar-open')
+      datePickerTrigger.classList.add('is-open')
+      updateDateFocusState()
+      startDateTrigger.setAttribute('aria-expanded', String(state.selecting === 'start'))
+      endDateTrigger.setAttribute('aria-expanded', String(state.selecting === 'end'))
+      updateDateSummary()
+      renderCalendars()
+    }
+
+    function closeCalendar() {
+      calendarPopover.hidden = true
+      leaveJourneyCard.classList.remove('is-calendar-open')
+      datePickerTrigger.classList.remove('is-open', 'is-selecting-start', 'is-selecting-end')
+      startDateTrigger.setAttribute('aria-expanded', 'false')
+      endDateTrigger.setAttribute('aria-expanded', 'false')
+    }
+
+    function refreshMobileLeaveDraft() {
+      document.querySelectorAll('[data-leave-id]').forEach(item => {
+        item.classList.toggle('is-mobile-draft', item.dataset.leaveId === state.mobileLeaveDraftId)
+      })
+    }
+
+    function openMobileLeavePicker() {
+      state.mobileLeaveDraftId = state.leaveId
+      mobileTypeSearch.value = ''
+      document.querySelectorAll('[data-leave-id]').forEach(item => { item.hidden = false })
+      refreshMobileLeaveDraft()
+      leavePicker.classList.add('is-mobile-open')
+      mobileTypeBackdrop.classList.add('is-open')
+      mobileLeaveTypeTrigger.setAttribute('aria-expanded', 'true')
+    }
+
+    function closeMobileLeavePicker() {
+      leavePicker.classList.remove('is-mobile-open')
+      mobileTypeBackdrop.classList.remove('is-open')
+      mobileLeaveTypeTrigger.setAttribute('aria-expanded', 'false')
+    }
+
+    function renderHourTimeRow() {
+      const visible = state.unit === 'hour'
+      startTimePart.hidden = !visible
+      endTimePart.hidden = !visible
+      startTimePart.closest('.date-field').classList.toggle('has-time', visible)
+      endTimePart.closest('.date-field').classList.toggle('has-time', visible)
+      if (visible) {
+        hourStartTime.value = state.startTime
+        hourEndTime.value = state.endTime
+      }
+    }
+
+    function buildDetailRows() {
+      const dates = datesBetween(state.start, state.end)
+      return dates.map((date, index) => ({
+        date,
+        start: index === 0 ? state.startTime : '',
+        end: index === dates.length - 1 ? state.endTime : '',
+        rest: '',
+        duration: null,
+      }))
+    }
+
+    function calculateDetailDuration(row) {
+      if (!row.start || !row.end || row.rest === '') return null
+      const [startHour, startMinute] = row.start.split(':').map(Number)
+      const [endHour, endMinute] = row.end.split(':').map(Number)
+      const worked = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60
+      return Math.max(0, worked - Number(row.rest))
+    }
+
+    function updateDetailTotals() {
+      state.timeSaved = state.detailRows.every(row => row.start && row.end && row.rest !== '' && row.duration !== null)
+      state.totalHours = state.timeSaved ? state.detailRows.reduce((total, row) => total + row.duration, 0) : null
+      updateDurationResult()
+      updateAction()
+    }
+
+    function recalculateHourlyState() {
+      state.timeSaved = false
+      state.totalHours = null
+      if (state.unit !== 'hour' || !state.start || !state.end) return
+
+      if (state.start === state.end) {
+        state.detailRows = []
+        if (!state.startTime || !state.endTime) return
+        const [startHour, startMinute] = state.startTime.split(':').map(Number)
+        const [endHour, endMinute] = state.endTime.split(':').map(Number)
+        const hours = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60
+        if (hours > 0) {
+          state.timeSaved = true
+          state.totalHours = hours
+        }
+        return
+      }
+
+      if (!state.detailRows.length) state.detailRows = buildDetailRows()
+      state.detailRows[0].start = state.startTime
+      state.detailRows[state.detailRows.length - 1].end = state.endTime
+      state.detailRows.forEach(row => { row.duration = calculateDetailDuration(row) })
+      state.timeSaved = state.detailRows.every(row => row.start && row.end && row.rest !== '' && row.duration !== null)
+      state.totalHours = state.timeSaved ? state.detailRows.reduce((total, row) => total + row.duration, 0) : null
+    }
+
+    function renderLeaveDetails() {
+      const isMultiDayHourly = state.unit === 'hour' && state.start && state.end && state.start !== state.end
+      if (!isMultiDayHourly) {
+        leaveDetail.hidden = true
+        leaveDetail.classList.remove('is-mobile-expanded')
+        state.mobileDetailsExpanded = false
+        leaveDetailRows.innerHTML = ''
+        return
+      }
+      if (!state.detailRows.length) state.detailRows = buildDetailRows()
+      leaveDetail.hidden = false
+      editDetails.textContent = '批量设置'
+      if (isMobileViewport()) editDetails.setAttribute('aria-label', '批量编辑休假明细')
+      else editDetails.removeAttribute('aria-label')
+      leaveDetailRows.innerHTML = state.detailRows.map((row, index) => `
+        <tr data-testid="detail-row" data-row-index="${index}">
+          <td><span class="detail-date">${displayDate(row.date)}</span><button class="mobile-detail-button" type="button" data-mobile-detail-index="${index}" aria-label="编辑 ${displayDate(row.date)} 休假明细"><span class="mobile-detail-date">${displayDate(row.date)}</span><span class="mobile-detail-period">${row.start || '--:--'}—${row.end || '--:--'}</span><span class="mobile-detail-duration">${row.duration === null ? '›' : `${Number(row.duration.toFixed(1))}h ›`}</span></button></td>
+          <td><label class="inline-detail-field"><input type="time" value="${row.start}" data-detail-field="start" aria-label="${row.date} 开始时间"></label></td>
+          <td><label class="inline-detail-field"><input type="time" value="${row.end}" data-detail-field="end" aria-label="${row.date} 结束时间"></label></td>
+          <td><label class="inline-detail-field"><input type="number" min="0" step="0.5" value="${row.rest}" placeholder="--" data-detail-field="rest" aria-label="${row.date} 扣减休息时长"><span class="inline-detail-unit">小时</span></label></td>
+          <td><span data-testid="detail-duration" class="detail-duration${row.duration === null ? ' detail-pending' : ''}">${row.duration === null ? '--' : `${Number(row.duration.toFixed(1))}h`}</span></td>
+        </tr>`).join('')
+      leaveDetailRows.querySelectorAll('[data-detail-field]').forEach(input => input.addEventListener('input', () => {
+        const rowElement = input.closest('[data-row-index]')
+        const index = Number(rowElement.dataset.rowIndex)
+        const row = state.detailRows[index]
+        row[input.dataset.detailField] = input.value
+        row.duration = calculateDetailDuration(row)
+        const durationElement = rowElement.querySelector('.detail-duration')
+        durationElement.textContent = row.duration === null ? '--' : `${Number(row.duration.toFixed(1))}h`
+        durationElement.classList.toggle('detail-pending', row.duration === null)
+        updateDetailTotals()
+      }))
+      leaveDetailRows.querySelectorAll('[data-mobile-detail-index]').forEach(button => button.addEventListener('click', () => openBatchEditor(Number(button.dataset.mobileDetailIndex))))
+      const hasMoreMobileRows = state.detailRows.length > 3
+      mobileExpandDetails.hidden = !hasMoreMobileRows
+      mobileExpandDetails.textContent = `查看全部 ${state.detailRows.length} 天`
+      leaveDetail.classList.toggle('is-mobile-expanded', state.mobileDetailsExpanded)
+    }
+
+    function openBatchEditor(detailIndex = null) {
+      if (!state.detailRows.length) return
+      const isSingleRow = Number.isInteger(detailIndex)
+      const detailRow = isSingleRow ? state.detailRows[detailIndex] : null
+      state.editingDetailIndex = isSingleRow ? detailIndex : null
+      document.getElementById('timeLayerTitle').textContent = isSingleRow ? '编辑休假明细' : '批量设置休假明细'
+      const startDate = document.getElementById('batchStartDate')
+      const endDate = document.getElementById('batchEndDate')
+      startDate.min = state.start
+      startDate.max = state.end
+      startDate.value = detailRow?.date || state.start
+      endDate.min = state.start
+      endDate.max = state.end
+      endDate.value = detailRow?.date || state.end
+      document.getElementById('batchStart').value = detailRow?.start || '09:00'
+      document.getElementById('batchEnd').value = detailRow?.end || '18:00'
+      document.getElementById('batchRest').value = detailRow?.rest || '1'
+      startDate.disabled = isSingleRow
+      endDate.disabled = isSingleRow
+      timeSheetBackdrop.hidden = false
+    }
+
+    function requirementsFor(leaveId) {
+      return demoLeaveRequirements[leaveId] || []
+    }
+
+    function requirementMarkup(requirement, mode, values = {}, attachmentName = '') {
+      const prefix = mode === 'modal' ? 'modal' : 'inline'
+      if (requirement.type === 'attachment') {
+        const inputId = `${prefix}Attachment`
+        return `<div class="${mode === 'modal' ? 'field' : 'supplement-field'}" data-testid="${prefix}-attachment">
+          <label class="${mode === 'modal' ? '' : 'supplement-field-label'}" for="${inputId}">${requirement.label}</label>
+          ${mode === 'modal'
+            ? `<div class="upload-box"><input id="${inputId}" type="file" aria-label="附件"></div>`
+            : `<label class="compact-upload" for="${inputId}"><span class="compact-upload-text">${attachmentName || '请选择证明文件'}</span><span class="compact-upload-action">选择文件</span></label><input id="${inputId}" type="file" aria-label="附件" hidden>`}
+        </div>`
+      }
+      if (requirement.type === 'gestational') {
+        return `<div class="${mode === 'modal' ? 'field' : 'supplement-field'}" data-testid="${prefix}-key-info">
+          <span class="${mode === 'modal' ? '' : 'supplement-field-label'}">${requirement.label}</span>
+          <div class="gestational-inputs">
+            <input class="${mode === 'modal' ? '' : 'supplement-control'}" type="number" min="0" step="1" value="${values.gestationalWeeks || ''}" aria-label="孕周（周）">
+            <span class="gestational-unit">周</span>
+            <input class="${mode === 'modal' ? '' : 'supplement-control'}" type="number" min="0" max="6" step="1" value="${values.gestationalDays || ''}" aria-label="孕周（天）">
+            <span class="gestational-unit">天</span>
+          </div>
+        </div>`
+      }
+      const inputId = `${prefix}-${requirement.key}`
+      return `<label class="${mode === 'modal' ? 'field' : 'supplement-field'}" data-testid="${prefix}-key-info" for="${inputId}">
+        <span class="${mode === 'modal' ? '' : 'supplement-field-label'}">${requirement.label}</span>
+        <input class="${mode === 'modal' ? '' : 'supplement-control'}" id="${inputId}" type="${requirement.type}" value="${values[requirement.key] || ''}" ${requirement.placeholder ? `placeholder="${requirement.placeholder}"` : ''} aria-label="${requirement.label}">
+      </label>`
+    }
+
+    function renderSupplementPanel() {
+      const requirements = requirementsFor(state.leaveId)
+      supplementSection.hidden = requirements.length === 0
+      supplementPanel.hidden = requirements.length === 0
+      inlineSupplementFields.innerHTML = requirements.map(requirement => requirementMarkup(requirement, 'inline', state.supplementData, state.attachmentName)).join('')
+      inlineSupplementFields.querySelectorAll('input:not([type="file"])').forEach(input => input.addEventListener('input', updateInlineSupplement))
+      inlineSupplementFields.querySelector('input[type="file"]')?.addEventListener('change', updateInlineSupplement)
+    }
+
+    function updateInlineSupplement(event) {
+      const input = event.target
+      if (input.type === 'file') {
+        state.attachmentName = input.files[0]?.name || ''
+        renderSupplementPanel()
+      } else if (input.getAttribute('aria-label') === '孕周（周）') {
+        state.supplementData.gestationalWeeks = input.value
+      } else if (input.getAttribute('aria-label') === '孕周（天）') {
+        state.supplementData.gestationalDays = input.value
+      } else {
+        const requirement = requirementsFor(state.leaveId).find(item => item.label === input.getAttribute('aria-label'))
+        if (requirement) state.supplementData[requirement.key] = input.value
+      }
+      updateAction()
+    }
+
+    function renderModalRequirements() {
+      const requirements = requirementsFor(state.pendingLeave?.id)
+      modalSupplementFields.innerHTML = requirements.map(requirement => requirementMarkup(requirement, 'modal')).join('')
+    }
+
+    function openModal() {
+      if (!state.pendingLeave) return
+      document.getElementById('modalTitle').textContent = '信息补充'
+      renderModalRequirements()
+      modal.hidden = false
+      modalSupplementFields.querySelector('input')?.focus()
+    }
+
+    function closeModal() {
+      modal.hidden = true
+      state.pendingLeave = null
+    }
+
+    function updateAction() {
+      const timeComplete = state.unit === 'day' ? Boolean(state.start && state.end) : state.timeSaved
+      trialButton.disabled = !(isSupplementComplete(state.leaveId, state.supplementData, state.attachmentName) && state.start && state.end && timeComplete)
+    }
+
+    function isSupplementComplete(leaveId, values = {}, attachmentName = '') {
+      return requirementsFor(leaveId).every(requirement => {
+        if (requirement.type === 'attachment') return Boolean(attachmentName)
+        if (requirement.type === 'gestational') return values.gestationalWeeks !== undefined && values.gestationalWeeks !== '' && values.gestationalDays !== undefined && values.gestationalDays !== ''
+        return Boolean(values[requirement.key])
+      })
+    }
+
+    function updateHourlyInputs() {
+      state.startTime = hourStartTime.value
+      state.endTime = hourEndTime.value
+      recalculateHourlyState()
+      renderLeaveDetails()
+      updateDurationResult()
+      updateAction()
+    }
+
+    function updateComposer() {
+      sendMessage.disabled = !chatInput.value.trim()
+      chatInput.style.height = 'auto'
+      chatInput.style.height = `${Math.min(chatInput.scrollHeight, 92)}px`
+    }
+
+    function sendChatMessage() {
+      const message = chatInput.value.trim()
+      if (!message) return
+      const row = document.createElement('div')
+      row.className = 'sent-user-row'
+      row.dataset.testid = 'sent-user-message'
+      const bubble = document.createElement('div')
+      bubble.className = 'user-bubble'
+      bubble.textContent = message
+      const avatar = document.createElement('div')
+      avatar.className = 'user-avatar'
+      avatar.setAttribute('aria-label', '我')
+      avatar.textContent = '我'
+      row.appendChild(bubble)
+      row.appendChild(avatar)
+      conversationMessages.appendChild(row)
+      chatInput.value = ''
+      updateComposer()
+      requestAnimationFrame(() => { conversationScroll.scrollTop = conversationScroll.scrollHeight })
+    }
+
+    function selectLeave(button) {
+      if (state.leaveId === button.dataset.leaveId) {
+        if (isMobileViewport()) openCalendar(state.start ? 'end' : 'start')
+        else inlineSupplementFields.querySelector('input')?.focus()
+        return
+      }
+      state.pendingLeave = {
+        id: button.dataset.leaveId,
+        name: button.dataset.name,
+        unit: button.dataset.unit || 'day',
+      }
+      if (!isMobileViewport() && requirementsFor(state.pendingLeave.id).length) {
+        closeCalendar()
+        openModal()
+        return
+      }
+      commitPendingLeave({}, '')
+    }
+
+    function collectModalSupplement() {
+      const values = {}
+      const attachmentName = modalSupplementFields.querySelector('input[type="file"]')?.files[0]?.name || ''
+      modalSupplementFields.querySelectorAll('input:not([type="file"])').forEach(input => {
+        const label = input.getAttribute('aria-label')
+        if (label === '孕周（周）') values.gestationalWeeks = input.value
+        else if (label === '孕周（天）') values.gestationalDays = input.value
+        else {
+          const requirement = requirementsFor(state.pendingLeave?.id).find(item => item.label === label)
+          if (requirement) values[requirement.key] = input.value
+        }
+      })
+      return { values, attachmentName }
+    }
+
+    function commitPendingLeave(supplementData = {}, attachmentName = '', openDateSelection = true) {
+      if (!state.pendingLeave) return
+      const pendingLeave = state.pendingLeave
+      document.querySelectorAll('[data-leave-id]').forEach(item => {
+        const selected = item.dataset.leaveId === pendingLeave.id
+        item.classList.toggle('is-selected', selected)
+        item.setAttribute('aria-checked', String(selected))
+      })
+      state.leaveId = pendingLeave.id
+      state.leaveName = pendingLeave.name
+      state.unit = pendingLeave.unit
+      state.supplementData = supplementData
+      state.attachmentName = attachmentName
+      state.startTime = ''
+      state.endTime = ''
+      state.detailRows = []
+      state.timeSaved = false
+      state.totalHours = null
+      mobileLeaveTypeValue.textContent = state.leaveName
+      updateDateSummary()
+      renderHourTimeRow()
+      renderLeaveDetails()
+      updateDurationResult()
+      renderSupplementPanel()
+      updateAction()
+      state.pendingLeave = null
+      if (openDateSelection) openCalendar(state.start ? 'end' : 'start')
+      else closeCalendar()
+    }
+
+    document.querySelectorAll('[data-leave-id]').forEach(button => button.addEventListener('click', () => {
+      if (isMobileViewport() && leavePicker.classList.contains('is-mobile-open')) {
+        state.mobileLeaveDraftId = button.dataset.leaveId
+        refreshMobileLeaveDraft()
+        return
+      }
+      selectLeave(button)
+    }))
+
+    mobileLeaveTypeTrigger.addEventListener('click', openMobileLeavePicker)
+    document.getElementById('mobileTypeCancel').addEventListener('click', closeMobileLeavePicker)
+    document.getElementById('mobileTypeCancelTop').addEventListener('click', closeMobileLeavePicker)
+    mobileTypeBackdrop.addEventListener('click', closeMobileLeavePicker)
+    document.getElementById('mobileTypeConfirm').addEventListener('click', () => {
+      const selected = document.querySelector(`[data-leave-id="${state.mobileLeaveDraftId}"]`)
+      closeMobileLeavePicker()
+      if (selected) selectLeave(selected)
+    })
+    mobileTypeSearch.addEventListener('input', () => {
+      const keyword = mobileTypeSearch.value.trim()
+      document.querySelectorAll('[data-leave-id]').forEach(item => {
+        item.hidden = Boolean(keyword && !item.dataset.name.includes(keyword))
+      })
+    })
+
+    chatInput.addEventListener('input', updateComposer)
+    chatInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.shiftKey) return
+      event.preventDefault()
+      chatComposer.requestSubmit()
+    })
+    chatComposer.addEventListener('submit', event => {
+      event.preventDefault()
+      sendChatMessage()
+    })
+    document.querySelector('[aria-label="添加附件"]').addEventListener('click', () => chatAttachment.click())
+
+    document.querySelector('.modal-close').addEventListener('click', closeModal)
+    document.getElementById('cancelSupplement').addEventListener('click', closeModal)
+    modal.addEventListener('click', event => { if (event.target === modal) closeModal() })
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return
+      if (!modal.hidden) closeModal()
+      if (!timeSheetBackdrop.hidden) timeSheetBackdrop.hidden = true
+      if (!calendarPopover.hidden) closeCalendar()
+    })
+
+    startDateTrigger.addEventListener('click', () => openCalendar('start'))
+    endDateTrigger.addEventListener('click', () => openCalendar('end'))
+    document.getElementById('collapseCalendar').addEventListener('click', closeCalendar)
+    document.getElementById('mobileCalendarBack').addEventListener('click', closeCalendar)
+    mobileCalendarConfirm.addEventListener('click', closeCalendar)
+    mobileStartSummary.addEventListener('click', () => openCalendar('start'))
+    mobileEndSummary.addEventListener('click', () => openCalendar('end'))
+    hourStartTime.addEventListener('input', updateHourlyInputs)
+    hourEndTime.addEventListener('input', updateHourlyInputs)
+    document.getElementById('saveSupplement').addEventListener('click', () => {
+      const { values, attachmentName } = collectModalSupplement()
+      if (!isSupplementComplete(state.pendingLeave?.id, values, attachmentName)) {
+        modalSupplementFields.querySelector('input')?.focus()
+        return
+      }
+      commitPendingLeave(values, attachmentName, !(state.start && state.end))
+      closeModal()
+    })
+
+    document.getElementById('previousMonth').addEventListener('click', () => {
+      if (state.monthIndex === 0) return
+      state.monthIndex -= 1
+      renderCalendars()
+    })
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      if (state.monthIndex === months.length - 1) return
+      state.monthIndex += 1
+      renderCalendars()
+    })
+
+    function closeTimeEditor() {
+      timeSheetBackdrop.hidden = true
+      state.editingDetailIndex = null
+      document.getElementById('batchStartDate').disabled = false
+      document.getElementById('batchEndDate').disabled = false
+    }
+
+    document.getElementById('closeTimes').addEventListener('click', closeTimeEditor)
+    document.getElementById('mobileTimeBack').addEventListener('click', closeTimeEditor)
+    editDetails.addEventListener('click', () => openBatchEditor())
+    mobileExpandDetails.addEventListener('click', () => {
+      state.mobileDetailsExpanded = true
+      leaveDetail.classList.add('is-mobile-expanded')
+    })
+    document.getElementById('closeMobileDetails').addEventListener('click', () => {
+      state.mobileDetailsExpanded = false
+      leaveDetail.classList.remove('is-mobile-expanded')
+    })
+    timeSheetBackdrop.addEventListener('click', event => { if (event.target === timeSheetBackdrop) timeSheetBackdrop.hidden = true })
+    saveTimes.addEventListener('click', () => {
+      const batchStartDate = document.getElementById('batchStartDate')
+      const batchEndDate = document.getElementById('batchEndDate')
+      const batchStart = document.getElementById('batchStart')
+      const batchEnd = document.getElementById('batchEnd')
+      const batchRest = document.getElementById('batchRest')
+      const inputs = [batchStartDate, batchEndDate, batchStart, batchEnd, batchRest]
+      const invalid = inputs.some(input => !input.value) || batchStartDate.value > batchEndDate.value
+      inputs.forEach(input => { input.style.borderColor = invalid && !input.value ? '#d93b3b' : '' })
+      if (invalid) return
+
+      state.detailRows.forEach(row => {
+        if (row.date < batchStartDate.value || row.date > batchEndDate.value) return
+        row.start = batchStart.value
+        row.end = batchEnd.value
+        row.rest = batchRest.value
+        row.duration = calculateDetailDuration(row)
+      })
+      state.startTime = state.detailRows[0].start
+      state.endTime = state.detailRows[state.detailRows.length - 1].end
+      hourStartTime.value = state.startTime
+      hourEndTime.value = state.endTime
+      updateDetailTotals()
+      renderLeaveDetails()
+      closeTimeEditor()
+    })
+
+
+    trialButton.addEventListener('click', () => {
+      const result = document.getElementById('submitResult')
+      result.hidden = false
+      window.setTimeout(() => { result.hidden = true }, 1800)
+    })
+
+    renderCalendars()
+    updateDateSummary()
+    renderHourTimeRow()
+    if (isMobileViewport()) closeCalendar()
+    else openCalendar('start')
+    renderLeaveDetails()
+    renderSupplementPanel()
+    updateDurationResult()
+    updateAction()
+  </script>
+</body>
+</html>
