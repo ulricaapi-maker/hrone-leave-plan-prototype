@@ -537,10 +537,16 @@
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
         <span>新建对话</span>
       </button>
+      <section class="conversation-group" aria-labelledby="pinnedConversations">
+        <h2 class="conversation-group-title" id="pinnedConversations">置顶</h2>
+        <div class="conversation-list">
+          <button class="conversation-item is-active" type="button" data-conversation-id="leadership" aria-current="page">9月10日调休申请</button>
+        </div>
+      </section>
       <section class="conversation-group" aria-labelledby="todayConversations">
         <h2 class="conversation-group-title" id="todayConversations">今天</h2>
         <div class="conversation-list">
-          <button class="conversation-item is-active" type="button" aria-current="page">休假申请</button>
+          <button class="conversation-item" type="button" data-conversation-id="development">休假申请</button>
         </div>
       </section>
       <section class="conversation-group" aria-labelledby="recentConversations">
@@ -555,14 +561,14 @@
     <main class="conversation-scroll" data-testid="conversation-scroll">
       <div class="workspace" id="conversationMessages">
       <div class="initial-user-row" data-testid="initial-user-message">
-        <div class="user-bubble">我想申请调休假</div>
+        <div class="user-bubble" id="initialUserCopy">我想9月10日下午2点到5点请调休。</div>
         <div class="user-avatar" data-testid="user-avatar" aria-label="我">我</div>
       </div>
       <div class="message-row">
         <img class="assistant-avatar" src="../assets/hrone-brand/hrone-agent-mark.png" alt="AI助手">
         <div>
           <div class="assistant-name">HRONE AI 助手</div>
-          <p class="assistant-copy">已识别为调休假，请核对并补充。</p>
+          <p class="assistant-copy" id="assistantCopy">已识别为调休假，休假时间已填写，请确认。</p>
 
           <article class="form-card" data-testid="fixed-leave-form">
             <div class="form-view" data-testid="form-view">
@@ -769,6 +775,33 @@
   </div>
 
   <script>
+    const conversationPresets = {
+      leadership: {
+        userCopy: '我想9月10日下午2点到5点请调休。',
+        assistantCopy: '已识别为调休假，休假时间已填写，请确认。',
+        start: '2026-09-10',
+        end: '2026-09-10',
+        startTime: '14:00',
+        endTime: '17:00',
+        selecting: 'end',
+        timeSaved: true,
+        totalHours: 3,
+        calendarOpen: false,
+      },
+      development: {
+        userCopy: '我想申请调休假',
+        assistantCopy: '已识别为调休假，请核对并补充。',
+        start: null,
+        end: null,
+        startTime: '',
+        endTime: '',
+        selecting: 'start',
+        timeSaved: false,
+        totalHours: null,
+        calendarOpen: true,
+      },
+    }
+
     const state = {
       leaveId: 'comp-time',
       leaveName: '调休假',
@@ -840,6 +873,9 @@
     const mobileStartDateText = document.getElementById('mobileStartDateText')
     const mobileEndDateText = document.getElementById('mobileEndDateText')
     const mobileExpandDetails = document.getElementById('mobileExpandDetails')
+    const initialUserCopy = document.getElementById('initialUserCopy')
+    const assistantCopy = document.getElementById('assistantCopy')
+    const conversationButtons = document.querySelectorAll('[data-conversation-id]')
 
     const months = [
       { year: 2026, month: 8, label: '2026年9月' },
@@ -850,6 +886,64 @@
     function dateKey(year, month, day) { return `${year}-${pad(month + 1)}-${pad(day)}` }
     function displayDate(value) { return value ? value.replaceAll('-', '/') : '请选择' }
     function isMobileViewport() { return window.matchMedia('(max-width: 760px)').matches }
+
+    function applyConversation(conversationId) {
+      const preset = conversationPresets[conversationId]
+      if (!preset) return
+
+      Object.assign(state, {
+        leaveId: 'comp-time',
+        leaveName: '调休假',
+        unit: 'hour',
+        supplementData: {},
+        attachmentName: '',
+        pendingLeave: null,
+        start: preset.start,
+        end: preset.end,
+        startTime: preset.startTime,
+        endTime: preset.endTime,
+        selecting: preset.selecting,
+        monthIndex: 0,
+        timeSaved: preset.timeSaved,
+        detailRows: [],
+        totalHours: preset.totalHours,
+        mobileLeaveDraftId: 'comp-time',
+        editingDetailIndex: null,
+        mobileDetailsExpanded: false,
+      })
+
+      conversationButtons.forEach(button => {
+        const selected = button.dataset.conversationId === conversationId
+        button.classList.toggle('is-active', selected)
+        if (selected) button.setAttribute('aria-current', 'page')
+        else button.removeAttribute('aria-current')
+      })
+      initialUserCopy.textContent = preset.userCopy
+      assistantCopy.textContent = preset.assistantCopy
+      conversationMessages.querySelectorAll('[data-testid="sent-user-message"]').forEach(message => message.remove())
+      chatInput.value = ''
+      document.getElementById('submitResult').hidden = true
+      modal.hidden = true
+      timeSheetBackdrop.hidden = true
+      document.querySelectorAll('[data-leave-id]').forEach(item => {
+        const selected = item.dataset.leaveId === 'comp-time'
+        item.classList.toggle('is-selected', selected)
+        item.classList.remove('is-mobile-draft')
+        item.setAttribute('aria-checked', String(selected))
+      })
+      mobileLeaveTypeValue.textContent = state.leaveName
+      renderCalendars()
+      updateDateSummary()
+      renderHourTimeRow()
+      renderLeaveDetails()
+      renderSupplementPanel()
+      updateDurationResult()
+      updateAction()
+      updateComposer()
+      if (isMobileViewport() || !preset.calendarOpen) closeCalendar()
+      else openCalendar(state.selecting)
+      conversationScroll.scrollTop = 0
+    }
 
     function monthMarkup({ year, month, label }) {
       const firstDay = new Date(year, month, 1).getDay()
@@ -1334,6 +1428,7 @@
       sendChatMessage()
     })
     document.querySelector('[aria-label="添加附件"]').addEventListener('click', () => chatAttachment.click())
+    conversationButtons.forEach(button => button.addEventListener('click', () => applyConversation(button.dataset.conversationId)))
 
     document.querySelector('.modal-close').addEventListener('click', closeModal)
     document.getElementById('cancelSupplement').addEventListener('click', closeModal)
@@ -1429,15 +1524,7 @@
       window.setTimeout(() => { result.hidden = true }, 1800)
     })
 
-    renderCalendars()
-    updateDateSummary()
-    renderHourTimeRow()
-    if (isMobileViewport()) closeCalendar()
-    else openCalendar('start')
-    renderLeaveDetails()
-    renderSupplementPanel()
-    updateDurationResult()
-    updateAction()
+    applyConversation(isMobileViewport() ? 'development' : 'leadership')
   </script>
 </body>
 </html>
